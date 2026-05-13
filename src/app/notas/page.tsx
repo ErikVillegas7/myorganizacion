@@ -352,7 +352,7 @@ export default function NotasPage() {
             <div className="px-5 py-4 space-y-4">
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Nombre</label>
-                <input autoFocus value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Ej: Ideas de proyectos"
+                <input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Ej: Ideas de proyectos"
                   onKeyDown={(e) => e.key === "Enter" && handleAddFolder()}
                   className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none transition-all"
                   style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
@@ -393,7 +393,7 @@ export default function NotasPage() {
             <div className="px-5 py-4 space-y-3">
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Título</label>
-                <input autoFocus value={newNoteTitle} onChange={(e) => setNewNoteTitle(e.target.value)} placeholder="Ej: Lista de compras"
+                <input value={newNoteTitle} onChange={(e) => setNewNoteTitle(e.target.value)} placeholder="Ej: Lista de compras"
                   onKeyDown={(e) => e.key === "Enter" && handleAddNote()}
                   className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none transition-all"
                   style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />

@@ -103,7 +103,6 @@ function SubjectModal({
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Nombre</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Matemática"
-              autoFocus
               className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none transition-all"
               style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
           </div>

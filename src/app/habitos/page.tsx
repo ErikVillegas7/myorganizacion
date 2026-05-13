@@ -118,7 +118,7 @@ export default function HabitosPage() {
             <div className="px-5 py-4 space-y-4">
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Nombre</label>
-                <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: Tomar 2L de agua"
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: Tomar 2L de agua"
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                   className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none transition-all"
                   style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
