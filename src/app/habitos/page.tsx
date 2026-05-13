@@ -130,8 +130,9 @@ export default function HabitosPage() {
                   {EMOJI_LIST.map(e => (
                     <button key={e} type="button" onClick={() => setNewEmoji(e)}
                       className={`aspect-square rounded-xl text-xl flex items-center justify-center border transition-all ${
-                        newEmoji === e ? "bg-white/8 border-white/15 scale-110" : "border-transparent opacity-50 hover:opacity-80"
-                      }`}>
+                        newEmoji === e ? "scale-110" : "border-transparent opacity-50 hover:opacity-80"
+                      }`}
+                      style={newEmoji === e ? { background: "var(--c-glass)", borderColor: "var(--c-border-2)" } : {}}>
                       {e}
                     </button>
                   ))}
@@ -144,8 +145,9 @@ export default function HabitosPage() {
                   {HABIT_COLORS.map(c => (
                     <button key={c.id} type="button" onClick={() => setNewColor(c.id)}
                       className={`w-7 h-7 rounded-full border-2 transition-all ${c.active} ${
-                        newColor === c.id ? "border-white scale-110 shadow-md" : "border-transparent opacity-40 hover:opacity-80"
-                      }`} />
+                        newColor === c.id ? "scale-110 shadow-md" : "border-transparent opacity-40 hover:opacity-80"
+                      }`}
+                      style={newColor === c.id ? { borderColor: "var(--c-text)" } : {}} />
                   ))}
                 </div>
               </div>
@@ -263,7 +265,7 @@ export default function HabitosPage() {
                             onClick={() => toggleDay(habit.id, key)}
                             className={`heatmap-cell aspect-square rounded-lg flex items-center justify-center text-[9px] font-bold transition-all ${
                               done
-                                ? `${color.active} text-white/90`
+                                ? `${color.active} text-white`
                                 : isToday
                                   ? "ring-1 ring-amber-400/40"
                                   : ""

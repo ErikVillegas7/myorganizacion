@@ -61,6 +61,34 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* ── Mobile input fix: prevent iOS zoom (needs ≥16px) ── */
+input, select, textarea {
+  font-size: 16px !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+  scroll-margin-bottom: 100px;
+}
+
+/* Auto-scroll focused input into view above keyboard */
+input:focus, select:focus, textarea:focus {
+  scroll-margin-bottom: 200px;
+}
+
+/* Fix select dropdown styling on mobile */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px !important;
+}
+
+/* Fix date input appearance on mobile */
+input[type="date"] {
+  min-height: 42px;
+}
+
 @theme inline {
   --color-background: var(--c-bg);
   --color-foreground: var(--c-text);
@@ -160,6 +188,21 @@ body {
   }
   [data-theme="light"] .card-interactive:hover {
     background: rgba(0, 0, 0, 0.02);
+  }
+
+  /* ── Light mode: fix hardcoded dark-only hover states ── */
+  [data-theme="light"] .hover\:bg-white\/5:hover,
+  [data-theme="light"] .hover\:bg-white\/\[0\.03\]:hover,
+  [data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover {
+    background: rgba(0, 0, 0, 0.04) !important;
+  }
+  [data-theme="light"] .group-hover\:text-white\/70:hover {
+    color: rgba(0, 0, 0, 0.6) !important;
+  }
+  [data-theme="light"] .bg-white\/8,
+  [data-theme="light"] .bg-white\/\[0\.04\],
+  [data-theme="light"] .bg-white\/\[0\.03\] {
+    background: rgba(0, 0, 0, 0.03) !important;
   }
 
   /* ── Status chips ── */
@@ -290,7 +333,7 @@ body {
     box-shadow: var(--shadow);
   }
 
-  /* ── Modal overlay ── */
+  /* ── Modal overlay — keyboard-aware ── */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -322,12 +365,17 @@ body {
     border-radius: var(--radius) var(--radius) 0 0;
     box-shadow: var(--shadow-lg);
     animation: slideUp 0.3s ease-out;
-    max-height: 90vh;
+    max-height: 85vh;
+    max-height: 85dvh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   @media (min-width: 640px) {
     .modal-content {
       border-radius: var(--radius);
+      max-height: 90vh;
+      padding-bottom: 0;
     }
   }
 }

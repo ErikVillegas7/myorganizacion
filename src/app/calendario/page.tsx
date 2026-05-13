@@ -173,9 +173,10 @@ export default function CalendarioPage() {
                     <button key={c.id} type="button" onClick={() => setNewColor(c.id)} title={c.label}
                       className={`w-7 h-7 rounded-full border-2 transition-all ${c.dot} ${
                         newColor === c.id
-                          ? "border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                          ? "scale-110 shadow-md"
                           : "border-transparent opacity-40 hover:opacity-80"
-                      }`} />
+                      }`}
+                      style={newColor === c.id ? { borderColor: "var(--c-text)" } : {}} />
                   ))}
                 </div>
               </div>

@@ -126,7 +126,7 @@ export function AppShell({ children }: AppShellProps) {
                     <item.icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
                     {showBadge && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white">{upcomingBadge > 9 ? "9+" : upcomingBadge}</span>}
                   </span>
-                  <span className={`font-semibold truncate ${isActive ? "" : "group-hover:text-white/70"}`} style={isActive ? {} : { transition: "color 0.2s" }}>
+                  <span className="font-semibold truncate" style={isActive ? {} : { transition: "color 0.2s" }}>
                     {item.label}
                   </span>
                 </Link>
@@ -218,7 +218,7 @@ export function AppShell({ children }: AppShellProps) {
             const showBadge = item.href === "/calendario" && upcomingBadge > 0;
             return (
               <Link key={`m-${item.href}`} href={item.href}
-                className={`flex flex-col items-center gap-0.5 py-2.5 transition-all ${isActive ? "text-white" : ""}`}
+                className="flex flex-col items-center gap-0.5 py-2.5 transition-all"
                 style={!isActive ? { color: "var(--c-text-muted)" } : {}}>
                 <span className={`relative inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ${
                   isActive ? `${item.activeBg} ${item.color}` : ""

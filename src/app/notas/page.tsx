@@ -363,8 +363,9 @@ export default function NotasPage() {
                   {FOLDER_COLORS.map(c => (
                     <button key={c.id} type="button" onClick={() => setNewFolderColor(c.id)}
                       className={`w-7 h-7 rounded-full border-2 transition-all ${c.bg} ${
-                        newFolderColor === c.id ? "border-white scale-110 shadow-md" : "border-transparent opacity-40 hover:opacity-80"
-                      }`} />
+                        newFolderColor === c.id ? "scale-110 shadow-md" : "border-transparent opacity-40 hover:opacity-80"
+                      }`}
+                      style={newFolderColor === c.id ? { borderColor: "var(--c-text)" } : {}} />
                   ))}
                 </div>
               </div>

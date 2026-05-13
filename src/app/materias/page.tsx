@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
-import { BookOpen, Plus, Trash2, X, Settings2, ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
+import { BookOpen, Plus, Trash2, X, Settings2, ChevronDown, ChevronRight, GraduationCap, TrendingUp, AlertTriangle } from "lucide-react";
 
 type UnitStatus = "pendiente" | "en-clase" | "aprendida";
 type SubjectType = "cuatrimestral" | "anual";
@@ -10,7 +10,9 @@ type SubjectType = "cuatrimestral" | "anual";
 type Subject = {
   id: string;
   name: string;
-  grade: string;
+  grade: string; // legacy — kept for backward compat
+  grades?: (number | null)[]; // NEW: array of grades, one per evaluation
+  passingGrade?: number; // NEW: nota para aprobar/promocionar (ej: 7)
   conditions: string;
   color?: string;
   type?: SubjectType;
@@ -38,8 +40,8 @@ const statusMeta: Record<UnitStatus, { label: string; bg: string; border: string
 };
 
 const initialSubjects: Subject[] = [{
-  id: "matematica", name: "Matemática", grade: "", conditions: "Parcial 1 y 2 + TP final.",
-  color: "violet", type: "cuatrimestral", evaluations: 2,
+  id: "matematica", name: "Matemática", grade: "", conditions: "",
+  color: "violet", type: "cuatrimestral", evaluations: 2, passingGrade: 7, grades: [null, null],
 }];
 const initialUnits: Unit[] = [
   { id: "unidad-1", subjectId: "matematica", title: "Funciones y límites", status: "pendiente" },
@@ -47,11 +49,24 @@ const initialUnits: Unit[] = [
 ];
 const createId = () => crypto.randomUUID();
 
+/** Get label for each evaluation slot */
+const evalLabel = (idx: number, total: number) => {
+  if (total === 1) return "Nota";
+  if (total === 2) return idx === 0 ? "Parcial 1" : "Parcial 2";
+  return `Eval ${idx + 1}`;
+};
+
+/** Calc average of filled grades */
+const calcAvg = (grades?: (number | null)[]): number | null => {
+  if (!grades) return null;
+  const filled = grades.filter((g): g is number => g !== null && g !== undefined);
+  if (filled.length === 0) return null;
+  return Math.round((filled.reduce((a, b) => a + b, 0) / filled.length) * 10) / 10;
+};
+
 /* ── Modal crear/editar materia ── */
 function SubjectModal({
-  initial,
-  onSave,
-  onClose,
+  initial, onSave, onClose,
 }: {
   initial?: Partial<Subject>;
   onSave: (s: Partial<Subject>) => void;
@@ -61,12 +76,12 @@ function SubjectModal({
   const [color, setColor] = useState(initial?.color ?? "violet");
   const [type, setType] = useState<SubjectType>(initial?.type ?? "cuatrimestral");
   const [evaluations, setEvaluations] = useState(initial?.evaluations ?? 2);
-  const [grade, setGrade] = useState(initial?.grade ?? "");
+  const [passingGrade, setPassing] = useState(initial?.passingGrade ?? 7);
   const [conditions, setConditions] = useState(initial?.conditions ?? "");
 
   const handleSave = () => {
     if (!name.trim()) return;
-    onSave({ name: name.trim(), color, type, evaluations, grade, conditions });
+    onSave({ name: name.trim(), color, type, evaluations, passingGrade, conditions });
     onClose();
   };
 
@@ -99,10 +114,9 @@ function SubjectModal({
               {SUBJECT_COLORS.map((c) => (
                 <button key={c.id} type="button" onClick={() => setColor(c.id)}
                   className={`w-7 h-7 rounded-full ${c.dot} transition-all ${
-                    color === c.id
-                      ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--c-bg-2)] scale-110"
-                      : "opacity-40 hover:opacity-80"
-                  }`} />
+                    color === c.id ? "ring-2 ring-offset-2 scale-110" : "opacity-40 hover:opacity-80"
+                  }`}
+                  style={color === c.id ? { "--tw-ring-color": "var(--c-text)", "--tw-ring-offset-color": "var(--c-bg-2)" } as React.CSSProperties : {}} />
               ))}
             </div>
           </div>
@@ -118,10 +132,10 @@ function SubjectModal({
             <div>
               <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Evaluaciones</label>
               <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
-                <button type="button" onClick={() => setEvaluations(Math.max(0, evaluations - 1))}
+                <button type="button" onClick={() => setEvaluations(Math.max(1, evaluations - 1))}
                   className="font-bold text-lg leading-none transition-colors" style={{ color: "var(--c-text-muted)" }}>−</button>
                 <span className="flex-1 text-center text-sm font-bold" style={{ color: "var(--c-text)" }}>{evaluations}</span>
-                <button type="button" onClick={() => setEvaluations(evaluations + 1)}
+                <button type="button" onClick={() => setEvaluations(Math.min(10, evaluations + 1))}
                   className="font-bold text-lg leading-none transition-colors" style={{ color: "var(--c-text-muted)" }}>+</button>
               </div>
             </div>
@@ -129,14 +143,15 @@ function SubjectModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Nota actual</label>
-              <input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Ej: 7"
+              <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Nota para aprobar</label>
+              <input type="number" min={1} max={10} step={1} value={passingGrade} onChange={(e) => setPassing(Number(e.target.value) || 4)}
+                placeholder="Ej: 7"
                 className="w-full rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-none transition-all"
                 style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
             </div>
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Para aprobar</label>
-              <input value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder="Ej: 2 parciales"
+              <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Observaciones</label>
+              <input value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder="Ej: TP obligatorio"
                 className="w-full rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-none transition-all"
                 style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
             </div>
@@ -174,14 +189,24 @@ export default function MateriasPage() {
   };
 
   const handleCreateSubject = (data: Partial<Subject>) => {
-    const s: Subject = { id: createId(), name: data.name!, grade: data.grade ?? "", conditions: data.conditions ?? "", color: data.color, type: data.type, evaluations: data.evaluations };
+    const evalCount = data.evaluations ?? 2;
+    const s: Subject = {
+      id: createId(), name: data.name!, grade: "", conditions: data.conditions ?? "",
+      color: data.color, type: data.type, evaluations: evalCount,
+      passingGrade: data.passingGrade ?? 7,
+      grades: Array(evalCount).fill(null),
+    };
     setSubjects([...subjects, s]);
     setExpandedId(s.id);
   };
 
   const handleEditSubject = (data: Partial<Subject>) => {
     if (!editingSubject) return;
-    setSubjects(subjects.map((s) => s.id === editingSubject.id ? { ...s, ...data } : s));
+    const newEvalCount = data.evaluations ?? editingSubject.evaluations ?? 2;
+    const oldGrades = editingSubject.grades ?? [];
+    // Resize grades array to match new eval count
+    const newGrades = Array.from({ length: newEvalCount }, (_, i) => oldGrades[i] ?? null);
+    setSubjects(subjects.map((s) => s.id === editingSubject.id ? { ...s, ...data, grades: newGrades } : s));
     setEditingSubject(null);
   };
 
@@ -190,6 +215,16 @@ export default function MateriasPage() {
     setSubjects(subjects.filter((s) => s.id !== id));
     setUnits(units.filter((u) => u.subjectId !== id));
     if (expandedId === id) setExpandedId(subjects.find((s) => s.id !== id)?.id ?? null);
+  };
+
+  const handleUpdateGrade = (subjectId: string, idx: number, value: string) => {
+    const num = value === "" ? null : Number(value);
+    setSubjects(subjects.map((s) => {
+      if (s.id !== subjectId) return s;
+      const grades = [...(s.grades ?? [])];
+      grades[idx] = num;
+      return { ...s, grades };
+    }));
   };
 
   const handleAddUnit = (subjectId: string) => {
@@ -213,7 +248,6 @@ export default function MateriasPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Modal */}
       {(showModal || editingSubject) && (
         <SubjectModal
           initial={editingSubject ?? undefined}
@@ -239,7 +273,7 @@ export default function MateriasPage() {
         </button>
       </div>
 
-      {/* Materias list — expandable cards */}
+      {/* Materias list */}
       <div className="scroll-panel px-4 sm:px-6 py-4 space-y-3">
         {subjects.length === 0 ? (
           <div className="py-16 text-center flex flex-col items-center gap-3">
@@ -255,11 +289,17 @@ export default function MateriasPage() {
             const pct = getProgress(subject.id);
             const c = getColor(subject.color);
             const subjectUnits = units.filter((u) => u.subjectId === subject.id);
+            const evalCount = subject.evaluations ?? 0;
+            const grades = subject.grades ?? [];
+            const avg = calcAvg(grades);
+            const passing = subject.passingGrade ?? 4;
+            const isPromoting = avg !== null && avg >= passing;
+            const filledCount = grades.filter((g) => g !== null && g !== undefined).length;
 
             return (
               <div key={subject.id} className={`rounded-2xl border transition-all duration-200 overflow-hidden ${isExpanded ? c.border : ""}`}
                 style={{ background: "var(--c-glass)", borderColor: isExpanded ? undefined : "var(--c-border)" }}>
-                {/* Subject header — clickable to expand */}
+                {/* Subject header */}
                 <button type="button"
                   onClick={() => setExpandedId(isExpanded ? null : subject.id)}
                   className="w-full px-4 py-3.5 flex items-center gap-3 text-left transition-all group">
@@ -270,6 +310,16 @@ export default function MateriasPage() {
                       {subject.type && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", color: "var(--c-text-muted)" }}>
                           {subject.type === "cuatrimestral" ? "Cuatri" : "Anual"}
+                        </span>
+                      )}
+                      {/* Promotion badge */}
+                      {avg !== null && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          isPromoting
+                            ? "bg-emerald-500/15 border-emerald-500/25 text-emerald-400"
+                            : "bg-rose-500/15 border-rose-500/25 text-rose-400"
+                        }`}>
+                          {isPromoting ? "✓ Promociona" : "✗ No promociona"}
                         </span>
                       )}
                     </div>
@@ -292,26 +342,65 @@ export default function MateriasPage() {
                 {/* Expanded content */}
                 {isExpanded && (
                   <div className="px-4 pb-4 anim-fade-in" style={{ borderTop: "1px solid var(--c-border)" }}>
+                    {/* Grades section */}
+                    {evalCount > 0 && (
+                      <div className="py-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
+                        <div className="flex items-center justify-between mb-2.5">
+                          <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--c-text-muted)" }}>
+                            <TrendingUp size={11} /> Notas ({filledCount}/{evalCount})
+                          </p>
+                          {avg !== null && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-semibold" style={{ color: "var(--c-text-muted)" }}>
+                                Promedio:
+                              </span>
+                              <span className={`text-sm font-extrabold ${isPromoting ? "text-emerald-400" : "text-rose-400"}`}>
+                                {avg}
+                              </span>
+                              <span className="text-[10px]" style={{ color: "var(--c-text-muted)" }}>
+                                / necesitás {passing}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(evalCount, 4)}, 1fr)` }}>
+                          {Array.from({ length: evalCount }, (_, i) => (
+                            <div key={i}>
+                              <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--c-text-muted)" }}>
+                                {evalLabel(i, evalCount)}
+                              </label>
+                              <input
+                                type="number" min={1} max={10} step={0.5}
+                                value={grades[i] ?? ""}
+                                onChange={(e) => handleUpdateGrade(subject.id, i, e.target.value)}
+                                placeholder="—"
+                                className="w-full rounded-xl px-3 py-2 text-center text-sm font-bold focus:outline-none transition-all"
+                                style={{
+                                  background: "var(--c-glass)",
+                                  border: `1px solid ${grades[i] !== null && grades[i] !== undefined
+                                    ? (grades[i]! >= passing ? "rgba(16,185,129,0.3)" : "rgba(244,63,94,0.3)")
+                                    : "var(--c-border)"}`,
+                                  color: grades[i] !== null && grades[i] !== undefined
+                                    ? (grades[i]! >= passing ? "#10b981" : "#f43f5e")
+                                    : "var(--c-text)",
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Subject meta + actions */}
                     <div className="flex items-center justify-between py-2.5 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        {subject.grade && (
-                          <span className={`status-chip ${c.bg} ${c.text} ${c.border}`}>
-                            Nota: {subject.grade}
-                          </span>
-                        )}
-                        {subject.evaluations != null && subject.evaluations > 0 && (
-                          <span className="status-chip" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", color: "var(--c-text-muted)" }}>
-                            {subject.evaluations} eval.
-                          </span>
-                        )}
                         {subject.conditions && (
-                          <span className="text-[11px] hidden sm:inline" style={{ color: "var(--c-text-muted)" }}>{subject.conditions}</span>
+                          <span className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>{subject.conditions}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
                         <button type="button" onClick={() => setEditingSubject(subject)}
-                          className="p-1.5 rounded-lg transition-all hover:bg-white/5" style={{ color: "var(--c-text-muted)" }}>
+                          className="p-1.5 rounded-lg transition-all" style={{ color: "var(--c-text-muted)" }}>
                           <Settings2 size={14} />
                         </button>
                         <button type="button" onClick={() => handleRemoveSubject(subject.id)}
@@ -326,8 +415,7 @@ export default function MateriasPage() {
                       {subjectUnits.map((unit) => {
                         const sm = statusMeta[unit.status];
                         return (
-                          <div key={unit.id} className="flex items-center gap-2.5 group/unit rounded-xl px-3 py-2.5 transition-all hover:bg-white/[0.03]">
-                            {/* Status chip — tap to cycle */}
+                          <div key={unit.id} className="flex items-center gap-2.5 group/unit rounded-xl px-3 py-2.5 transition-all">
                             <button type="button" onClick={() => cycleStatus(unit.id)}
                               className={`status-chip flex-none ${sm.bg} ${sm.text} ${sm.border}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
@@ -342,7 +430,6 @@ export default function MateriasPage() {
                           </div>
                         );
                       })}
-
                       {subjectUnits.length === 0 && (
                         <p className="text-xs text-center py-4" style={{ color: "var(--c-text-muted)" }}>Sin unidades todavía.</p>
                       )}
