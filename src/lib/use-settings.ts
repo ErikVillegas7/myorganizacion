@@ -8,11 +8,13 @@ export type AppSettings = {
   theme: AppTheme;
   name: string;
   avatar?: string; // base64 data URL
+  soundEnabled?: boolean;
 };
 
 const defaultSettings: AppSettings = {
   theme: "dark",
   name: "Estudiante",
+  soundEnabled: false,
 };
 
 export function useSettings() {

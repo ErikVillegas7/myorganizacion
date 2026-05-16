@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
-import { Activity, Target, Plus, Check, Trash2, X, Flame, ChevronDown, ChevronRight } from "lucide-react";
+import { 
+  Activity, Target, Plus, Check, Trash2, X, Flame, 
+  MoreVertical, Book, Dumbbell, Droplets, Heart, 
+  Zap, Monitor, Music, Coffee, Briefcase, PenTool, Moon
+} from "lucide-react";
+import { useSound } from "@/lib/use-sound";
 
 type HabitColor = "zinc" | "blue" | "emerald" | "violet" | "rose" | "amber";
 
 type Habit = {
   id: string;
   name: string;
-  emoji: string;
+  emoji?: string; // Deprecated
+  icon?: string;
   color: HabitColor;
   history: Record<string, boolean>;
 };
@@ -23,10 +29,15 @@ const HABIT_COLORS: { id: HabitColor; bg: string; text: string; border: string; 
   { id: "amber",   bg: "bg-amber-500/15",   text: "text-amber-400",   border: "border-amber-500/25",   active: "bg-amber-400" },
 ];
 
-const EMOJI_LIST = ["📖", "🏃", "💧", "🧘", "🍏", "💪", "💻", "🎸", "💊", "🧹", "🎨", "💤"];
+const ICONS_MAP: Record<string, any> = {
+  Target, Book, Dumbbell, Droplets, Heart, 
+  Zap, Flame, Monitor, Music, Coffee, 
+  Briefcase, PenTool, Moon, Activity
+};
+const ICON_NAMES = Object.keys(ICONS_MAP);
 
 const initialHabits: Habit[] = [
-  { id: "habit-lectura", name: "Lectura", emoji: "📖", color: "blue", history: {} }
+  { id: "habit-lectura", name: "Lectura", icon: "Book", color: "blue", history: {} }
 ];
 
 const createId = () => crypto.randomUUID();
@@ -34,11 +45,27 @@ const createId = () => crypto.randomUUID();
 const fmtKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-const getLastDays = (n: number) => {
+// Get current week (Monday to Sunday)
+const getCurrentWeekDays = () => {
   const today = new Date();
-  return Array.from({ length: n }, (_, i) => {
+  today.setHours(0, 0, 0, 0);
+  const dayOfWeek = today.getDay() || 7; // 1 (Mon) - 7 (Sun)
+  
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - dayOfWeek + 1);
+  
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+};
+
+const getHeatmapDays = () => {
+  const today = new Date();
+  return Array.from({ length: 35 }, (_, i) => {
     const d = new Date(today);
-    d.setDate(today.getDate() - (n - 1 - i));
+    d.setDate(today.getDate() - (34 - i));
     return d;
   });
 };
@@ -60,47 +87,68 @@ const calcStreak = (history: Record<string, boolean>): number => {
 
 export default function HabitosPage() {
   const [habits, setHabits] = useLocalStorageState<Habit[]>("mo_habits", initialHabits);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  // New habit state
   const [newName, setNewName] = useState("");
-  const [newEmoji, setNewEmoji] = useState("🏃");
+  const [newIcon, setNewIcon] = useState("Target");
   const [newColor, setNewColor] = useState<HabitColor>("amber");
+  
+  const playSound = useSound();
+  const weekDays = useMemo(() => getCurrentWeekDays(), []);
+  const heatmapDays = useMemo(() => getHeatmapDays(), []);
+  
+  // Auto-open modal if hash is #new
+  useEffect(() => {
+    if (window.location.hash === "#new") {
+      setShowModal(true);
+      window.history.replaceState(null, "", "/habitos");
+    }
+  }, []);
 
   const todayKey = fmtKey(new Date());
   const habitsTodayDone = habits.filter((h) => h.history[todayKey]).length;
-  const heatmapDays = useMemo(() => getLastDays(35), []);
 
   const handleAdd = () => {
     const t = newName.trim();
     if (!t) return;
-    setHabits([...habits, { id: createId(), name: t, emoji: newEmoji, color: newColor, history: {} }]);
+    setHabits([...habits, { id: createId(), name: t, icon: newIcon, color: newColor, history: {} }]);
     setNewName("");
-    setNewEmoji("🏃");
+    setNewIcon("Target");
     setNewColor("amber");
     setShowModal(false);
+    playSound("success");
   };
 
   const handleRemove = (id: string) => {
-    if (!window.confirm("¿Seguro que querés eliminar este hábito?")) return;
+    if (!window.confirm("¿Seguro que querés eliminar este hábito y todo su progreso?")) return;
+    playSound("pop");
     setHabits(habits.filter((h) => h.id !== id));
-    if (expandedId === id) setExpandedId(null);
-  };
-
-  const toggleToday = (habitId: string) => {
-    setHabits(habits.map((h) =>
-      h.id !== habitId ? h : { ...h, history: { ...h.history, [todayKey]: !h.history[todayKey] } }
-    ));
+    setMenuOpenId(null);
   };
 
   const toggleDay = (habitId: string, dayKey: string) => {
-    setHabits(habits.map((h) =>
-      h.id !== habitId ? h : { ...h, history: { ...h.history, [dayKey]: !h.history[dayKey] } }
-    ));
+    setHabits(habits.map((h) => {
+      if (h.id !== habitId) return h;
+      const willBeDone = !h.history[dayKey];
+      playSound(willBeDone ? "success" : "pop");
+      return { ...h, history: { ...h.history, [dayKey]: willBeDone } };
+    }));
   };
+
+  const renderIcon = (habit: Habit) => {
+    const IconComponent = habit.icon ? ICONS_MAP[habit.icon] : (habit.emoji ? null : Target);
+    if (IconComponent) return <IconComponent size={20} strokeWidth={2} />;
+    return <span className="text-lg">{habit.emoji}</span>; // Fallback for old data
+  };
+
+  const dayLetters = ["L", "M", "M", "J", "V", "S", "D"];
 
   return (
     <div className="h-full flex flex-col overflow-hidden relative">
-      {/* ── Modal ── */}
+      {/* ── Modal de Creación ── */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setShowModal(false)} />
@@ -115,7 +163,7 @@ export default function HabitosPage() {
               </button>
             </div>
 
-            <div className="px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-5">
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Nombre</label>
                 <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: Tomar 2L de agua"
@@ -125,17 +173,20 @@ export default function HabitosPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider block mb-2" style={{ color: "var(--c-text-muted)" }}>Emoji</label>
-                <div className="grid grid-cols-6 gap-2">
-                  {EMOJI_LIST.map(e => (
-                    <button key={e} type="button" onClick={() => setNewEmoji(e)}
-                      className={`aspect-square rounded-xl text-xl flex items-center justify-center border transition-all ${
-                        newEmoji === e ? "scale-110" : "border-transparent opacity-50 hover:opacity-80"
-                      }`}
-                      style={newEmoji === e ? { background: "var(--c-glass)", borderColor: "var(--c-border-2)" } : {}}>
-                      {e}
-                    </button>
-                  ))}
+                <label className="text-[11px] font-bold uppercase tracking-wider block mb-2" style={{ color: "var(--c-text-muted)" }}>Icono</label>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {ICON_NAMES.slice(0, 14).map(iconName => {
+                    const IconComp = ICONS_MAP[iconName];
+                    return (
+                      <button key={iconName} type="button" onClick={() => { playSound("tap"); setNewIcon(iconName); }}
+                        className={`aspect-square rounded-xl flex items-center justify-center border transition-all ${
+                          newIcon === iconName ? "scale-110 shadow-md text-amber-400" : "border-transparent text-zinc-400 hover:opacity-80"
+                        }`}
+                        style={newIcon === iconName ? { background: "var(--c-glass)", borderColor: "var(--c-border-2)" } : {}}>
+                        <IconComp size={18} strokeWidth={2} />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -143,9 +194,9 @@ export default function HabitosPage() {
                 <label className="text-[11px] font-bold uppercase tracking-wider block mb-2" style={{ color: "var(--c-text-muted)" }}>Color</label>
                 <div className="flex gap-3">
                   {HABIT_COLORS.map(c => (
-                    <button key={c.id} type="button" onClick={() => setNewColor(c.id)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${c.active} ${
-                        newColor === c.id ? "scale-110 shadow-md" : "border-transparent opacity-40 hover:opacity-80"
+                    <button key={c.id} type="button" onClick={() => { playSound("tap"); setNewColor(c.id); }}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${c.active} ${
+                        newColor === c.id ? "scale-110 shadow-md ring-2 ring-offset-2 ring-offset-[var(--c-bg)] ring-[var(--c-text)]" : "border-transparent opacity-40 hover:opacity-80"
                       }`}
                       style={newColor === c.id ? { borderColor: "var(--c-text)" } : {}} />
                   ))}
@@ -160,8 +211,9 @@ export default function HabitosPage() {
                 Cancelar
               </button>
               <button type="button" onClick={handleAdd}
-                className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-bold text-black hover:bg-amber-400 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] flex items-center justify-center gap-2">
-                <Check size={16} /> Crear
+                className="flex-1 rounded-xl bg-[var(--c-text)] py-2.5 text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                style={{ color: "var(--c-bg)" }}>
+                <Check size={16} strokeWidth={2.5} /> Crear Hábito
               </button>
             </div>
           </div>
@@ -169,92 +221,124 @@ export default function HabitosPage() {
       )}
 
       {/* ── Header ── */}
-      <div className="flex-none px-4 sm:px-6 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--c-border)" }}>
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20">
-            <Activity size={16} className="text-amber-400" />
-          </div>
-          <div>
-            <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Hábitos</p>
-            <p className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone}/{habits.length} completados hoy</p>
-          </div>
+      <div className="flex-none px-4 sm:px-6 py-4 flex items-center justify-between z-10" style={{ background: "var(--c-bg)" }}>
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight leading-none" style={{ color: "var(--c-text)" }}>Hábitos</h1>
+          <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {habits.length} completados hoy</p>
         </div>
-        <button type="button" onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-black hover:bg-amber-400 transition-all shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-          <Plus size={14} /> <span className="hidden sm:inline">Nuevo</span>
+        <button type="button" onClick={() => { playSound("click"); setShowModal(true); }}
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
+          style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
+          <Plus size={20} strokeWidth={2.5} />
         </button>
       </div>
 
       {/* ── Habits list ── */}
-      <div className="scroll-panel px-4 sm:px-6 py-4 space-y-2">
+      <div className="scroll-panel px-4 sm:px-6 py-2 space-y-4 pb-32">
         {habits.length === 0 ? (
-          <div className="py-16 text-center flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Target size={24} className="text-amber-400/50" />
+          <div className="py-16 text-center flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-3xl bg-[var(--c-glass)] border flex items-center justify-center" style={{ borderColor: "var(--c-border)" }}>
+              <Target size={28} className="opacity-40" />
             </div>
-            <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Ningún hábito todavía</p>
-            <p className="text-xs max-w-[220px]" style={{ color: "var(--c-text-muted)" }}>Creá tu primer hábito para empezar tu racha.</p>
+            <div>
+              <p className="text-base font-bold" style={{ color: "var(--c-text)" }}>Ningún hábito todavía</p>
+              <p className="text-xs mt-1 max-w-[220px] mx-auto" style={{ color: "var(--c-text-muted)" }}>Creá tu primer hábito para empezar a construir tu rutina semanal.</p>
+            </div>
           </div>
         ) : (
-          habits.map((habit) => {
-            const isDone = habit.history[todayKey];
+          habits.map((habit, index) => {
             const streak = calcStreak(habit.history);
             const color = HABIT_COLORS.find(c => c.id === habit.color) || HABIT_COLORS[0];
+            const isMenuOpen = menuOpenId === habit.id;
             const isExpanded = expandedId === habit.id;
 
             return (
               <div key={habit.id}
-                className={`rounded-2xl border transition-all duration-200 overflow-hidden ${isDone ? color.border : ""}`}
-                style={{ background: "var(--c-glass)", borderColor: isDone ? undefined : "var(--c-border)" }}>
-                {/* Main row: check today + name + streak */}
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  {/* Check button */}
-                  <button type="button" onClick={() => toggleToday(habit.id)}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-none border transition-all duration-200 ${
-                      isDone
-                        ? `${color.bg} ${color.border} ${color.text} anim-check-pop`
-                        : "hover:bg-white/[0.04]"
-                    }`}
-                    style={!isDone ? { borderColor: "var(--c-border)" } : {}}>
-                    {isDone ? <Check size={18} strokeWidth={2.5} /> : <span className="text-lg">{habit.emoji}</span>}
-                  </button>
-
-                  {/* Name + streak */}
-                  <button type="button" onClick={() => setExpandedId(isExpanded ? null : habit.id)}
-                    className="flex-1 min-w-0 text-left flex items-center gap-2">
-                    <p className={`text-sm font-bold truncate ${isDone ? "line-through opacity-60" : ""}`} style={{ color: "var(--c-text)" }}>
-                      {habit.name}
-                    </p>
-                    {streak > 0 && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold flex-none ${color.bg} ${color.text} ${color.border} border`}>
-                        <Flame size={10} /> {streak}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Expand + delete */}
-                  <div className="flex items-center gap-1 flex-none">
-                    <button type="button" onClick={() => setExpandedId(isExpanded ? null : habit.id)}
-                      className="p-1.5 rounded-lg transition-all" style={{ color: "var(--c-text-muted)" }}>
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                className="relative rounded-[20px] p-4 transition-all duration-300 anim-slide-up"
+                style={{ 
+                  background: "var(--c-surface)", 
+                  border: "1px solid var(--c-border)",
+                  boxShadow: "var(--shadow)",
+                  animationDelay: `${index * 0.05}s`
+                }}>
+                
+                {/* Cabecera del Hábito */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-[14px] flex items-center justify-center flex-none ${color.bg} ${color.text}`}>
+                      {renderIcon(habit)}
+                    </div>
+                    <div>
+                      <h3 className="text-[15px] font-bold leading-tight" style={{ color: "var(--c-text)" }}>{habit.name}</h3>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Flame size={12} className={streak > 0 ? "text-amber-500" : "text-zinc-500 opacity-50"} />
+                        <span className="text-[11px] font-semibold" style={{ color: streak > 0 ? "var(--c-text)" : "var(--c-text-muted)" }}>
+                          {streak} días seguidos
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Menú de opciones */}
+                  <div className="relative">
+                    <button onClick={() => { playSound("click"); setMenuOpenId(isMenuOpen ? null : habit.id); }} className="p-2 rounded-xl transition-all hover:bg-white/[0.04]" style={{ color: "var(--c-text-muted)" }}>
+                      <MoreVertical size={18} />
                     </button>
+                    {isMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setMenuOpenId(null)} />
+                        <div className="absolute top-10 right-0 z-40 w-36 rounded-xl p-1 shadow-lg border anim-scale-in origin-top-right"
+                          style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}>
+                          <button onClick={() => handleRemove(habit.id)} className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-all">
+                            <Trash2 size={14} /> Eliminar
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Expanded: heatmap */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 anim-fade-in" style={{ borderTop: "1px solid var(--c-border)" }}>
-                    <div className="flex items-center justify-between py-2.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>
-                        Últimos 35 días
-                      </p>
-                      <button type="button" onClick={() => handleRemove(habit.id)}
-                        className="flex items-center gap-1 text-[11px] font-semibold rounded-lg px-2 py-1 transition-all hover:bg-rose-500/10 text-rose-400">
-                        <Trash2 size={12} /> Eliminar
-                      </button>
-                    </div>
+                {/* Semana actual (7 días) */}
+                <div className="flex items-center justify-between px-1">
+                  {weekDays.map((day, i) => {
+                    const key = fmtKey(day);
+                    const done = habit.history[key];
+                    const isToday = key === todayKey;
+                    
+                    return (
+                      <div key={key} className="flex flex-col items-center gap-1.5">
+                        <span className="text-[9px] font-bold tracking-wide" style={{ color: isToday ? "var(--c-text)" : "var(--c-text-muted)" }}>
+                          {dayLetters[i]}
+                        </span>
+                        <button 
+                          onClick={() => toggleDay(habit.id, key)}
+                          className={`w-9 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${
+                            done 
+                              ? `${color.active} text-[var(--c-bg)] shadow-[0_4px_12px_rgba(0,0,0,0.15)] anim-check-pop scale-105` 
+                              : "hover:bg-white/[0.04] active:scale-90"
+                          }`}
+                          style={!done ? { border: isToday ? `1px solid ${color.text}` : "1px solid var(--c-border)", background: isToday ? color.bg : "var(--c-glass)" } : {}}>
+                          {done && <Check size={16} strokeWidth={3} />}
+                          {!done && isToday && <span className="w-1 h-1 rounded-full bg-current opacity-50" />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
 
-                    {/* Heatmap grid — 7 cols x 5 rows */}
+                {/* Botón Ver Historial */}
+                <button 
+                  onClick={() => { playSound("click"); setExpandedId(isExpanded ? null : habit.id); }}
+                  className="w-full mt-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all"
+                  style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text-muted)" }}
+                >
+                  {isExpanded ? "Ocultar Historial" : "Ver Historial Completo"}
+                </button>
+
+                {/* Heatmap (35 days) */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 anim-slide-up" style={{ borderTop: "1px solid var(--c-border)" }}>
+                    <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "var(--c-text-muted)" }}>Últimos 35 días</p>
                     <div className="grid grid-cols-7 gap-1.5">
                       {heatmapDays.map((day) => {
                         const key = fmtKey(day);
@@ -265,42 +349,32 @@ export default function HabitosPage() {
                             onClick={() => toggleDay(habit.id, key)}
                             className={`heatmap-cell aspect-square rounded-lg flex items-center justify-center text-[9px] font-bold transition-all ${
                               done
-                                ? `${color.active} text-white`
+                                ? `${color.active} text-white shadow-sm scale-105`
                                 : isToday
                                   ? "ring-1 ring-amber-400/40"
-                                  : ""
+                                  : "hover:bg-white/[0.04]"
                             }`}
                             style={!done ? { background: "var(--c-glass)", color: "var(--c-text-muted)" } : {}}
-                            title={`${day.getDate()}/${day.getMonth() + 1} — ${done ? "✓" : "✗"}`}>
+                            title={`${day.getDate()}/${day.getMonth() + 1}`}>
                             {day.getDate()}
                           </button>
                         );
                       })}
                     </div>
-
-                    {/* Stats row */}
-                    <div className="flex items-center gap-4 mt-3 pt-3" style={{ borderTop: "1px solid var(--c-border)" }}>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Racha</p>
-                        <p className={`text-lg font-extrabold ${color.text}`}>{streak}<span className="text-xs font-semibold" style={{ color: "var(--c-text-muted)" }}> días</span></p>
+                    {/* Stats */}
+                    <div className="flex items-center gap-4 mt-4">
+                      <div className="flex-1 bg-[var(--c-glass)] border rounded-xl p-2.5 text-center" style={{ borderColor: "var(--c-border)" }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Racha Total</p>
+                        <p className={`text-lg font-extrabold ${color.text}`}>{streak}</p>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Últimos 7d</p>
-                        <p className={`text-lg font-extrabold ${color.text}`}>
-                          {heatmapDays.slice(-7).filter(d => habit.history[fmtKey(d)]).length}
-                          <span className="text-xs font-semibold" style={{ color: "var(--c-text-muted)" }}> /7</span>
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Total</p>
-                        <p className={`text-lg font-extrabold ${color.text}`}>
-                          {Object.values(habit.history).filter(Boolean).length}
-                          <span className="text-xs font-semibold" style={{ color: "var(--c-text-muted)" }}> días</span>
-                        </p>
+                      <div className="flex-1 bg-[var(--c-glass)] border rounded-xl p-2.5 text-center" style={{ borderColor: "var(--c-border)" }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Histórico</p>
+                        <p className={`text-lg font-extrabold ${color.text}`}>{Object.values(habit.history).filter(Boolean).length}</p>
                       </div>
                     </div>
                   </div>
                 )}
+
               </div>
             );
           })

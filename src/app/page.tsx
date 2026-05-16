@@ -1,15 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Calendar, BookOpen, Activity, ArrowRight, Flame, TrendingUp, Clock, Plus, Sparkles } from "lucide-react";
+import { 
+  Search, Settings2, Calendar, Activity, 
+  ChevronRight, ChevronDown, Flame, BookOpen, Book, Atom,
+  Calculator, Globe, Languages, Briefcase, GraduationCap,
+  FileText, Clock, Plus, Folder
+} from "lucide-react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import { useSettings } from "@/lib/use-settings";
-import { useMemo } from "react";
+import { useSound } from "@/lib/use-sound";
+import { useMemo, useState } from "react";
 
 type CalEvent = { id: string; title: string; date: string; type: string; color?: string };
 type Habit = { id: string; name: string; emoji: string; history: Record<string, boolean> };
 type Unit = { id: string; subjectId: string; title: string; status: string };
-type Subject = { id: string; name: string };
+type Subject = { id: string; name: string; color?: string; icon?: string };
+
+const subjectIconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  BookOpen,
+  Book,
+  Atom,
+  Calculator,
+  Globe,
+  Languages,
+  Briefcase,
+  GraduationCap,
+};
 
 const fmtKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -28,12 +45,24 @@ export default function DashboardPage() {
   const [units] = useLocalStorageState<Unit[]>("mo_units", []);
   const [subjects] = useLocalStorageState<Subject[]>("mo_subjects", []);
   const [settings] = useSettings();
+  const playSound = useSound();
+
+  // Acordeones state
+  const [openSections, setOpenSections] = useState({
+    recents: true,
+    spaces: true,
+  });
+
+  const toggleSection = (key: keyof typeof openSections) => {
+    playSound("click");
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayKey = fmtKey(today);
 
-  // Próximo evento
+  // Próximo evento (Examen)
   const nextEvent = useMemo(() =>
     [...events]
       .filter((e) => new Date(`${e.date}T00:00:00`) >= today)
@@ -47,231 +76,157 @@ export default function DashboardPage() {
   // Hábitos
   const habitsTodayDone = habits.filter((h) => h.history[todayKey]).length;
   const habitsTotal = habits.length;
-  const habitsPct = habitsTotal > 0 ? Math.round((habitsTodayDone / habitsTotal) * 100) : 0;
-
-  // Materias
-  const learnedUnits = units.filter((u) => u.status === "aprendida").length;
-  const totalUnits = units.length;
-  const unitsPct = totalUnits > 0 ? Math.round((learnedUnits / totalUnits) * 100) : 0;
-
-  // Global day progress
-  const globalPct = habitsTotal > 0 || totalUnits > 0
-    ? Math.round(((habitsTodayDone + learnedUnits) / (habitsTotal + totalUnits || 1)) * 100)
-    : 0;
-
-  const cards = [
-    {
-      href: "/notas",
-      label: "Notas",
-      desc: "Ideas y apuntes",
-      icon: FileText,
-      color: "text-blue-400",
-      bg: "bg-blue-500/8",
-      border: "border-blue-500/15",
-      iconBg: "bg-blue-500/12",
-      stat: null,
-    },
-    {
-      href: "/calendario",
-      label: "Calendario",
-      desc: nextEvent
-        ? `${nextEvent.title}`
-        : "Sin eventos próximos",
-      icon: Calendar,
-      color: "text-rose-400",
-      bg: "bg-rose-500/8",
-      border: "border-rose-500/15",
-      iconBg: "bg-rose-500/12",
-      stat: nextEvent
-        ? { label: nextEventDiff === 0 ? "Hoy" : `${nextEventDiff}d`, highlight: nextEventDiff === 0 }
-        : null,
-    },
-    {
-      href: "/materias",
-      label: "Materias",
-      desc: `${learnedUnits}/${totalUnits} unidades`,
-      icon: BookOpen,
-      color: "text-violet-400",
-      bg: "bg-violet-500/8",
-      border: "border-violet-500/15",
-      iconBg: "bg-violet-500/12",
-      stat: totalUnits > 0 ? { label: `${unitsPct}%`, highlight: unitsPct === 100 } : null,
-    },
-    {
-      href: "/habitos",
-      label: "Hábitos",
-      desc: habitsTotal > 0
-        ? `${habitsTodayDone}/${habitsTotal} hoy`
-        : "Sin hábitos",
-      icon: Activity,
-      color: "text-amber-400",
-      bg: "bg-amber-500/8",
-      border: "border-amber-500/15",
-      iconBg: "bg-amber-500/12",
-      stat: habitsTotal > 0 ? { label: `${habitsPct}%`, highlight: habitsPct === 100 } : null,
-    },
-  ];
 
   return (
-    <div className="h-full overflow-y-auto scroll-panel">
-      <div className="p-5 sm:p-8 flex flex-col gap-6 max-w-2xl mx-auto">
+    <div className="h-full overflow-y-auto scroll-panel pb-24">
+      {/* ── Search & Header (Mobile style) ── */}
+      <div className="p-4 pt-5 pb-2 flex items-center gap-3 anim-slide-down">
+        <div className="flex-1 relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input 
+            type="text" 
+            placeholder="Buscar..." 
+            className="w-full rounded-2xl py-2.5 pl-10 pr-4 text-sm font-medium transition-all"
+            style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }}
+            onFocus={() => playSound("tap")}
+          />
+        </div>
+        <Link href="/ajustes" onClick={() => playSound("click")} className="p-2.5 rounded-2xl flex-none border transition-all hover:bg-white/[0.04] active:scale-95" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", color: "var(--c-text-muted)" }}>
+          <Settings2 size={18} />
+        </Link>
+      </div>
 
-        {/* ── Greeting ── */}
-        <div className="flex items-center justify-between pt-1 anim-slide-down">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight" style={{ color: "var(--c-text)" }}>
-              {getGreeting()}, {settings.name.split(" ")[0]}
-            </h1>
-            <p className="text-xs mt-0.5 capitalize" style={{ color: "var(--c-text-muted)" }}>
-              {new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}
-            </p>
-          </div>
+      <div className="px-4 sm:px-5 flex flex-col gap-6 max-w-2xl mx-auto pb-8">
+        
+        {/* ── Saludo Relajado ── */}
+        <div className="pt-2 pb-1 pl-1 anim-fade-in" style={{ animationDelay: "0.1s" }}>
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight" style={{ color: "var(--c-text)" }}>
+            {getGreeting()}, {settings.name.split(" ")[0]}
+          </h1>
+          <p className="text-xs mt-1" style={{ color: "var(--c-text-muted)" }}>
+            Hoy es {new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}.
+          </p>
+        </div>
 
-          {/* Day progress ring */}
-          {(habitsTotal > 0 || totalUnits > 0) && (
-            <div className="flex-none relative w-12 h-12">
-              <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--c-border)" strokeWidth="2.5" />
-                <circle cx="18" cy="18" r="15.5" fill="none"
-                  stroke="url(#progressGrad)" strokeWidth="2.5"
-                  strokeDasharray={`${globalPct} ${100 - globalPct}`}
-                  strokeLinecap="round"
-                  className="transition-all duration-700" />
-                <defs>
-                  <linearGradient id="progressGrad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold" style={{ color: "var(--c-text)" }}>
-                {globalPct}%
-              </span>
+        {/* ── Info Importante Directa (Quick Cards) ── */}
+        <div className="grid grid-cols-2 gap-3 anim-slide-up" style={{ animationDelay: "0.15s" }}>
+          {/* Examen / Próximo Evento */}
+          <Link href="/calendario" onClick={() => playSound("tap")}
+            className="group relative flex flex-col gap-2 rounded-2xl p-4 border transition-all duration-200 hover:bg-white/[0.02] active:scale-[0.98]"
+            style={{ background: "var(--c-glass)", borderColor: "var(--c-border)" }}>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center">
+                <Clock size={14} className="text-rose-400" />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Próximo</span>
             </div>
-          )}
+            <div>
+              <p className="text-lg font-extrabold leading-tight mt-1 truncate" style={{ color: "var(--c-text)" }}>
+                {nextEventDiff !== null ? (nextEventDiff === 0 ? "¡Hoy!" : `${nextEventDiff} días`) : "Libre"}
+              </p>
+              <p className="text-xs font-medium truncate mt-0.5" style={{ color: "var(--c-text-muted)" }}>
+                {nextEvent?.title || "Sin eventos próximos"}
+              </p>
+            </div>
+          </Link>
+
+          {/* Hábitos Completados */}
+          <Link href="/habitos" onClick={() => playSound("tap")}
+            className="group relative flex flex-col gap-2 rounded-2xl p-4 border transition-all duration-200 hover:bg-white/[0.02] active:scale-[0.98]"
+            style={{ background: "var(--c-glass)", borderColor: "var(--c-border)" }}>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <Flame size={14} className="text-amber-400" />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--c-text-muted)" }}>Hábitos</span>
+            </div>
+            <div>
+              <p className="text-lg font-extrabold leading-tight mt-1" style={{ color: "var(--c-text)" }}>
+                {habitsTodayDone} <span className="text-sm font-semibold opacity-50">/ {habitsTotal}</span>
+              </p>
+              <p className="text-xs font-medium truncate mt-0.5" style={{ color: "var(--c-text-muted)" }}>
+                Completados hoy
+              </p>
+            </div>
+          </Link>
         </div>
 
-        {/* ── Quick Actions ── */}
-        <div className="flex gap-2 anim-slide-up" style={{ animationDelay: "0.05s" }}>
-          <Link href="/notas" className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all border hover:scale-[1.02] active:scale-[0.98]"
-            style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", color: "var(--c-text)" }}>
-            <Plus size={13} /> Nota
-          </Link>
-          <Link href="/calendario" className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all border hover:scale-[1.02] active:scale-[0.98]"
-            style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", color: "var(--c-text)" }}>
-            <Plus size={13} /> Evento
-          </Link>
-        </div>
-
-        {/* ── Bento Cards ── */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {cards.map((card, i) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className={`group relative flex flex-col gap-3 rounded-2xl p-4 sm:p-5 border transition-all duration-200 hover:scale-[1.015] active:scale-[0.98] anim-slide-up ${card.border}`}
-              style={{ background: "var(--c-glass)", animationDelay: `${0.08 + i * 0.04}s` }}
-            >
-              {/* Icon + stat */}
-              <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center flex-none`}>
-                  <card.icon size={19} className={card.color} />
-                </div>
-                {card.stat && (
-                  <span className={`text-sm font-bold leading-none ${card.stat.highlight ? "text-emerald-400" : card.color}`}>
-                    {card.stat.label}
-                  </span>
+        {/* ── Acordeones ── */}
+        <div className="space-y-4 anim-slide-up" style={{ animationDelay: "0.2s" }}>
+          
+          {/* Recientes (Materias) */}
+          <div className="rounded-2xl border overflow-hidden transition-all" style={{ background: "var(--c-bg-2)", borderColor: "var(--c-border)" }}>
+            <button onClick={() => toggleSection('recents')} className="w-full flex items-center justify-between p-4 bg-white/[0.01] active:bg-white/[0.03] transition-all">
+              <span className="text-sm font-bold flex items-center gap-2" style={{ color: "var(--c-text)" }}>
+                Recientes
+              </span>
+              <span className="p-1 rounded-md" style={{ color: "var(--c-text-muted)" }}>
+                {openSections.recents ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </span>
+            </button>
+            
+            {openSections.recents && (
+              <div className="px-2 pb-2 space-y-0.5">
+                {subjects.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-center" style={{ color: "var(--c-text-muted)" }}>
+                    No hay materias recientes.
+                  </div>
+                ) : (
+                  subjects.slice(0, 4).map((sub) => (
+                    <Link key={sub.id} href="/materias" onClick={() => playSound("tap")} className="flex items-center gap-3 p-2.5 rounded-xl transition-all hover:bg-white/[0.04] active:scale-[0.98]">
+                      <div className="w-8 h-8 rounded-lg flex flex-none items-center justify-center text-lg" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
+                        {(() => {
+                          const IconComp = sub.icon ? subjectIconMap[sub.icon] : null;
+                          if (IconComp) {
+                            return <IconComp size={16} className="text-violet-400" />;
+                          }
+                          return <BookOpen size={16} className="text-violet-400" />;
+                        })()}
+                      </div>
+                      <span className="text-sm font-semibold truncate flex-1" style={{ color: "var(--c-text)" }}>{sub.name}</span>
+                    </Link>
+                  ))
                 )}
               </div>
+            )}
+          </div>
 
-              {/* Label + desc */}
-              <div className="min-w-0">
-                <p className="font-bold text-sm leading-tight" style={{ color: "var(--c-text)" }}>{card.label}</p>
-                <p className="text-[11px] mt-0.5 leading-snug line-clamp-2" style={{ color: "var(--c-text-muted)" }}>
-                  {card.desc}
-                </p>
+          {/* Espacios (Módulos principales) */}
+          <div className="rounded-2xl border overflow-hidden transition-all" style={{ background: "var(--c-bg-2)", borderColor: "var(--c-border)" }}>
+            <button onClick={() => toggleSection('spaces')} className="w-full flex items-center justify-between p-4 bg-white/[0.01] active:bg-white/[0.03] transition-all">
+              <span className="text-sm font-bold flex items-center gap-2" style={{ color: "var(--c-text)" }}>
+                Espacios
+              </span>
+              <span className="p-1 rounded-md" style={{ color: "var(--c-text-muted)" }}>
+                {openSections.spaces ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </span>
+            </button>
+            
+            {openSections.spaces && (
+              <div className="px-2 pb-2 space-y-0.5">
+                <Link href="/notas" onClick={() => playSound("tap")} className="flex items-center gap-3 p-2.5 rounded-xl transition-all hover:bg-white/[0.04] active:scale-[0.98]">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex flex-none items-center justify-center">
+                    <FileText size={14} className="text-blue-400" />
+                  </div>
+                  <span className="text-sm font-semibold truncate flex-1" style={{ color: "var(--c-text)" }}>Todas las Notas</span>
+                </Link>
+                <Link href="/materias" onClick={() => playSound("tap")} className="flex items-center gap-3 p-2.5 rounded-xl transition-all hover:bg-white/[0.04] active:scale-[0.98]">
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex flex-none items-center justify-center">
+                    <BookOpen size={14} className="text-violet-400" />
+                  </div>
+                  <span className="text-sm font-semibold truncate flex-1" style={{ color: "var(--c-text)" }}>Materias</span>
+                </Link>
+                <Link href="/habitos" onClick={() => playSound("tap")} className="flex items-center gap-3 p-2.5 rounded-xl transition-all hover:bg-white/[0.04] active:scale-[0.98]">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex flex-none items-center justify-center">
+                    <Activity size={14} className="text-amber-400" />
+                  </div>
+                  <span className="text-sm font-semibold truncate flex-1" style={{ color: "var(--c-text)" }}>Hábitos Diarios</span>
+                </Link>
               </div>
+            )}
+          </div>
 
-              {/* Arrow on hover */}
-              <ArrowRight size={14} className={`${card.color} opacity-0 group-hover:opacity-60 transition-all duration-200 absolute bottom-4 right-4 translate-x-0 group-hover:translate-x-0.5`} />
-            </Link>
-          ))}
         </div>
-
-        {/* ── Resumen del día ── */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 anim-slide-up" style={{ animationDelay: "0.25s" }}>
-          {/* Próximo evento */}
-          <div className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-1.5 border" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)" }}>
-            <div className="flex items-center gap-1.5 text-rose-400">
-              <Clock size={12} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Próximo</span>
-            </div>
-            <p className="text-xs font-bold truncate" style={{ color: "var(--c-text)" }}>
-              {nextEvent?.title ?? "—"}
-            </p>
-            <p className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>
-              {nextEventDiff !== null
-                ? nextEventDiff === 0 ? "Hoy" : `En ${nextEventDiff} días`
-                : "Sin eventos"}
-            </p>
-          </div>
-
-          {/* Hábitos hoy */}
-          <div className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-1.5 border" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)" }}>
-            <div className="flex items-center gap-1.5 text-amber-400">
-              <Flame size={12} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Hoy</span>
-            </div>
-            <p className="text-2xl font-extrabold leading-none" style={{ color: "var(--c-text)" }}>
-              {habitsPct}<span className="text-sm">%</span>
-            </p>
-            <p className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>hábitos</p>
-          </div>
-
-          {/* Progreso materias */}
-          <div className="rounded-2xl p-3.5 sm:p-4 flex flex-col gap-1.5 border" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)" }}>
-            <div className="flex items-center gap-1.5 text-violet-400">
-              <TrendingUp size={12} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Progreso</span>
-            </div>
-            <p className="text-2xl font-extrabold leading-none" style={{ color: "var(--c-text)" }}>
-              {unitsPct}<span className="text-sm">%</span>
-            </p>
-            <p className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>unidades</p>
-          </div>
-        </div>
-
-        {/* ── Today's habits quick-check ── */}
-        {habits.length > 0 && (
-          <div className="rounded-2xl p-4 border anim-slide-up flex flex-col gap-3" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", animationDelay: "0.3s" }}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold flex items-center gap-1.5" style={{ color: "var(--c-text-muted)" }}>
-                <Sparkles size={12} className="text-amber-400" /> Hábitos de hoy
-              </p>
-              <Link href="/habitos" className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors">
-                Ver todos →
-              </Link>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {habits.slice(0, 6).map((habit) => {
-                const done = habit.history[todayKey];
-                return (
-                  <span key={habit.id}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      done
-                        ? "bg-emerald-500/12 border-emerald-500/25 text-emerald-400"
-                        : "border text-zinc-400"
-                    }`}
-                    style={!done ? { borderColor: "var(--c-border)" } : {}}>
-                    <span>{habit.emoji}</span>
-                    <span className="truncate max-w-[80px]">{habit.name}</span>
-                    {done && <span className="text-emerald-400">✓</span>}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
       </div>
     </div>

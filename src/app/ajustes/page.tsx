@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { useSettings, AppTheme } from "@/lib/use-settings";
 import {
   User, Sun, Moon, Download, Upload, Trash2,
-  Camera, Settings, CheckCircle2, AlertTriangle,
+  Camera, Settings, CheckCircle2, AlertTriangle, Volume2, VolumeX,
 } from "lucide-react";
+import { useSound } from "@/lib/use-sound";
 
 const ALL_STORAGE_KEYS = [
   "mo_notes", "mo_folders", "mo_events", "mo_habits",
@@ -53,8 +54,10 @@ export default function AjustesPage() {
   const [showDanger, setShowDanger] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+  const playSound = useSound();
 
   const handleSaveName = () => {
+    playSound("success");
     setSettings({ ...settings, name: name.trim() || "Estudiante" });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -71,6 +74,7 @@ export default function AjustesPage() {
   };
 
   const handleTheme = (t: AppTheme) => {
+    playSound("tap");
     setSettings({ ...settings, theme: t });
     document.documentElement.setAttribute("data-theme", t);
   };
@@ -112,8 +116,8 @@ export default function AjustesPage() {
                   </span>
                 )}
               </div>
-              <button type="button" onClick={() => avatarInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl bg-violet-500 flex items-center justify-center shadow-lg hover:bg-violet-400 transition-all">
+              <button type="button" onClick={() => { playSound("tap"); avatarInputRef.current?.click(); }}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl bg-violet-500 flex items-center justify-center shadow-lg hover:bg-violet-400 transition-all active:scale-90">
                 <Camera size={13} className="text-white" />
               </button>
               <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
@@ -126,13 +130,13 @@ export default function AjustesPage() {
                   className="flex-1 rounded-xl px-3.5 py-2 text-sm font-semibold focus:outline-none transition-all"
                   style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
                 <button type="button" onClick={handleSaveName}
-                  className={`flex-none rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${saved ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-violet-500 text-white hover:bg-violet-400"}`}>
+                  className={`flex-none rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${saved ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-[var(--c-text)] text-[var(--c-bg)] shadow-md"}`}>
                   {saved ? <><CheckCircle2 size={13} /> Guardado</> : "Guardar"}
                 </button>
               </div>
               {settings.avatar && (
-                <button type="button" onClick={() => setSettings({ ...settings, avatar: undefined })}
-                  className="text-[11px] text-rose-400 hover:text-rose-300 mt-2 transition-all">
+                <button type="button" onClick={() => { playSound("pop"); setSettings({ ...settings, avatar: undefined }); }}
+                  className="text-[11px] text-rose-400 hover:text-rose-300 mt-2 transition-all active:scale-95">
                   Eliminar foto
                 </button>
               )}
@@ -140,21 +144,43 @@ export default function AjustesPage() {
           </div>
         </section>
 
-        {/* ── Tema — segmented control ── */}
+        {/* ── Experiencia — segmented control ── */}
         <section className="rounded-2xl p-5 border flex flex-col gap-4 anim-slide-up" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", animationDelay: "0.05s" }}>
           <h2 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--c-text-muted)" }}>
-            <Sun size={12} /> Apariencia
+            <Sun size={12} /> Experiencia
           </h2>
-          <div className="segmented-control" style={{ maxWidth: "280px" }}>
-            <button type="button" data-active={settings.theme === "dark"} onClick={() => handleTheme("dark")}
-              className="flex items-center justify-center gap-2">
-              <Moon size={14} /> Oscuro
-            </button>
-            <button type="button" data-active={settings.theme === "light"} onClick={() => handleTheme("light")}
-              className="flex items-center justify-center gap-2">
-              <Sun size={14} /> Claro
-            </button>
+          
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Apariencia</span>
+            <div className="segmented-control" style={{ maxWidth: "200px" }}>
+              <button type="button" data-active={settings.theme === "dark"} onClick={() => handleTheme("dark")}
+                className="flex items-center justify-center gap-2">
+                <Moon size={14} /> Oscuro
+              </button>
+              <button type="button" data-active={settings.theme === "light"} onClick={() => handleTheme("light")}
+                className="flex items-center justify-center gap-2">
+                <Sun size={14} /> Claro
+              </button>
+            </div>
           </div>
+
+          <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid var(--c-border)" }}>
+            <div>
+              <span className="text-sm font-bold block" style={{ color: "var(--c-text)" }}>Sonidos</span>
+              <span className="text-[10px]" style={{ color: "var(--c-text-muted)" }}>Efectos al tocar botones</span>
+            </div>
+            <div className="segmented-control" style={{ maxWidth: "160px" }}>
+              <button type="button" data-active={settings.soundEnabled === true} onClick={() => { setSettings({ ...settings, soundEnabled: true }); playSound("success"); }}
+                className="flex items-center justify-center gap-2">
+                <Volume2 size={14} /> Sí
+              </button>
+              <button type="button" data-active={settings.soundEnabled !== true} onClick={() => setSettings({ ...settings, soundEnabled: false })}
+                className="flex items-center justify-center gap-2">
+                <VolumeX size={14} /> No
+              </button>
+            </div>
+          </div>
+
         </section>
 
         {/* ── Backup ── */}
@@ -166,13 +192,13 @@ export default function AjustesPage() {
             Tus datos se guardan localmente en este navegador. Exportá un backup para usarlos en otro dispositivo.
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={exportBackup}
-              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.98]"
+            <button type="button" onClick={() => { playSound("click"); exportBackup(); }}
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-95"
               style={{ borderColor: "var(--c-border)", background: "var(--c-glass)", color: "var(--c-text)" }}>
               <Download size={15} /> Exportar
             </button>
-            <button type="button" onClick={() => backupInputRef.current?.click()}
-              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.98]"
+            <button type="button" onClick={() => { playSound("tap"); backupInputRef.current?.click(); }}
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-95"
               style={{ borderColor: "var(--c-border)", background: "var(--c-glass)", color: "var(--c-text)" }}>
               <Upload size={15} /> Importar
             </button>
@@ -187,21 +213,21 @@ export default function AjustesPage() {
             <AlertTriangle size={12} /> Zona peligrosa
           </h2>
           {!showDanger ? (
-            <button type="button" onClick={() => setShowDanger(true)}
-              className="flex items-center gap-2 rounded-xl py-2.5 px-4 border border-rose-500/25 bg-rose-500/10 text-rose-400 text-sm font-bold hover:bg-rose-500/20 transition-all w-full justify-center">
+            <button type="button" onClick={() => { playSound("pop"); setShowDanger(true); }}
+              className="flex items-center gap-2 rounded-xl py-2.5 px-4 border border-rose-500/25 bg-rose-500/10 text-rose-400 text-sm font-bold hover:bg-rose-500/20 transition-all w-full justify-center active:scale-95">
               <Trash2 size={15} /> Borrar todos los datos
             </button>
           ) : (
             <div className="flex flex-col gap-3 anim-fade-in">
               <p className="text-sm text-rose-300 font-medium">¿Seguro? Esto borra <strong>todo</strong> — notas, hábitos, materias, eventos. No se puede deshacer.</p>
               <div className="flex flex-col sm:flex-row gap-2">
-                <button type="button" onClick={() => setShowDanger(false)}
+                <button type="button" onClick={() => { playSound("tap"); setShowDanger(false); }}
                   className="flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all"
                   style={{ border: "1px solid var(--c-border)", color: "var(--c-text-muted)" }}>
                   Cancelar
                 </button>
-                <button type="button" onClick={handleClearAll}
-                  className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-bold text-white hover:bg-rose-400 transition-all">
+                <button type="button" onClick={() => { playSound("click"); handleClearAll(); }}
+                  className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-bold text-white hover:bg-rose-400 transition-all active:scale-95 shadow-md">
                   Sí, borrar todo
                 </button>
               </div>
@@ -211,7 +237,7 @@ export default function AjustesPage() {
 
         {/* Footer */}
         <p className="text-center text-[11px] pb-4" style={{ color: "var(--c-text-muted)" }}>
-          Mi Organización v3.0 · Datos guardados localmente
+          Desarrollado por Villegas · Datos guardados localmente
         </p>
       </div>
     </div>

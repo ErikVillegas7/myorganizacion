@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { useMemo, useEffect, useState } from "react";
 import {
   LayoutDashboard, FileText, Calendar, BookOpen,
-  Activity, Menu, X, Settings,
+  Activity, Menu, X, Settings, Plus,
 } from "lucide-react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import { useSettings } from "@/lib/use-settings";
+import { useSound } from "@/lib/use-sound";
 
 type AppShellProps = { children: React.ReactNode };
 
@@ -26,8 +27,10 @@ type CalEvent = { id: string; date: string };
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [events] = useLocalStorageState<CalEvent[]>("mo_events", []);
   const [settings] = useSettings();
+  const playSound = useSound();
 
   // Apply theme
   useEffect(() => {
@@ -66,14 +69,6 @@ export function AppShell({ children }: AppShellProps) {
         className="flex-none h-13 flex items-center gap-3 px-4 sm:px-5 z-30"
         style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", backdropFilter: "blur(16px)" }}
       >
-        {/* Mobile hamburger */}
-        <button type="button" onClick={() => setMobileSidebarOpen(true)}
-          className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-xl sm:hidden transition-colors"
-          style={{ color: "var(--c-text-muted)" }}
-          aria-label="Abrir menu">
-          <Menu size={20} />
-        </button>
-
         {/* App identity */}
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="hidden sm:flex w-7 h-7 rounded-lg items-center justify-center flex-none" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
@@ -202,9 +197,9 @@ export function AppShell({ children }: AppShellProps) {
         <main className="flex-1 overflow-hidden min-w-0">{children}</main>
       </div>
 
-      {/* ── Bottom nav mobile — 5 items, generous touch targets ── */}
+      {/* ── Bottom nav mobile — 4 items + floating center ── */}
       <nav
-        className="flex-none sm:hidden z-30"
+        className="flex-none sm:hidden z-30 relative"
         style={{
           background: "var(--c-surface)",
           borderTop: "1px solid var(--c-border)",
@@ -212,26 +207,71 @@ export function AppShell({ children }: AppShellProps) {
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        <div className="grid grid-cols-5 px-1">
-          {navItems.map((item) => {
-            const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            const showBadge = item.href === "/calendario" && upcomingBadge > 0;
-            return (
-              <Link key={`m-${item.href}`} href={item.href}
-                className="flex flex-col items-center gap-0.5 py-2.5 transition-all"
-                style={!isActive ? { color: "var(--c-text-muted)" } : {}}>
-                <span className={`relative inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ${
-                  isActive ? `${item.activeBg} ${item.color}` : ""
-                }`}>
-                  <item.icon size={18} strokeWidth={isActive ? 2.2 : 1.6} />
-                  {showBadge && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-rose-500 text-[7px] font-bold text-white">{upcomingBadge}</span>}
-                </span>
-                <span className="text-[11px] font-medium truncate w-full text-center leading-tight">
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+        <div className="flex items-center justify-around px-2 h-[60px]">
+          {/* Item 1: Inicio */}
+          <Link href="/" onClick={() => playSound("tap")} className="flex flex-col items-center gap-1 w-14 transition-all" style={pathname === "/" ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
+            <LayoutDashboard size={20} strokeWidth={pathname === "/" ? 2.2 : 1.8} className={pathname === "/" ? "text-emerald-400" : ""} />
+            <span className="text-[10px] font-medium leading-none">Inicio</span>
+          </Link>
+
+          {/* Item 2: Calendario */}
+          <Link href="/calendario" onClick={() => playSound("tap")} className="flex flex-col items-center gap-1 w-14 transition-all relative" style={pathname.startsWith("/calendario") ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
+            <Calendar size={20} strokeWidth={pathname.startsWith("/calendario") ? 2.2 : 1.8} className={pathname.startsWith("/calendario") ? "text-rose-400" : ""} />
+            {upcomingBadge > 0 && <span className="absolute top-0 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[var(--c-surface)]" />}
+            <span className="text-[10px] font-medium leading-none">Eventos</span>
+          </Link>
+
+          {/* Center Button: Create */}
+          <div className="w-14 h-full flex items-center justify-center -mt-6 relative">
+            <button type="button" onClick={() => { playSound("click"); setCreateMenuOpen(!createMenuOpen); }}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${createMenuOpen ? "rotate-45" : ""} active:scale-95`}
+              style={{ background: "var(--c-bg)", border: "2px solid var(--c-border-2)", color: "var(--c-text)" }}>
+              <Plus size={24} strokeWidth={2} />
+            </button>
+            
+            {/* Create Menu Popover */}
+            {createMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setCreateMenuOpen(false)} />
+                <div className="absolute bottom-[70px] left-1/2 -translate-x-1/2 w-[220px] rounded-3xl p-2 z-50 flex flex-col gap-1 anim-slide-up shadow-[0_12px_40px_rgba(0,0,0,0.3)] border"
+                  style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}>
+                  
+                  <Link href="/notas#new" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-white/[0.05] transition-all" style={{ color: "var(--c-text)" }}>
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center"><FileText size={18} className="text-blue-400" /></div>
+                    <span className="text-sm font-bold">Nueva Nota</span>
+                  </Link>
+                  
+                  <Link href="/calendario#new" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-white/[0.05] transition-all" style={{ color: "var(--c-text)" }}>
+                    <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center"><Calendar size={18} className="text-rose-400" /></div>
+                    <span className="text-sm font-bold">Nuevo Evento</span>
+                  </Link>
+                  
+                  <Link href="/materias#new" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-white/[0.05] transition-all" style={{ color: "var(--c-text)" }}>
+                    <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center"><BookOpen size={18} className="text-violet-400" /></div>
+                    <span className="text-sm font-bold">Nueva Materia</span>
+                  </Link>
+                  
+                  <Link href="/habitos#new" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-white/[0.05] transition-all" style={{ color: "var(--c-text)" }}>
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center"><Activity size={18} className="text-amber-400" /></div>
+                    <span className="text-sm font-bold">Nuevo Hábito</span>
+                  </Link>
+
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Item 3: Hábitos */}
+          <Link href="/habitos" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex flex-col items-center gap-1 w-14 transition-all" style={pathname.startsWith("/habitos") ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
+            <Activity size={20} strokeWidth={pathname.startsWith("/habitos") ? 2.2 : 1.8} className={pathname.startsWith("/habitos") ? "text-amber-400" : ""} />
+            <span className="text-[10px] font-medium leading-none">Hábitos</span>
+          </Link>
+
+          {/* Item 4: Menu / Más */}
+          <button type="button" onClick={() => { playSound("click"); setMobileSidebarOpen(true); }} className="flex flex-col items-center gap-1 w-14 transition-all" style={{ color: "var(--c-text-muted)" }}>
+            <Menu size={20} strokeWidth={1.8} />
+            <span className="text-[10px] font-medium leading-none">Más</span>
+          </button>
         </div>
       </nav>
     </div>

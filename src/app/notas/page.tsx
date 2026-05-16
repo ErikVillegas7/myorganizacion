@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import {
   Folder as FolderIcon, FolderOpen, FileText, Edit3,
   Clock, Trash2, Search, X, ChevronRight, Plus, CheckCircle2,
 } from "lucide-react";
+import { useSound } from "@/lib/use-sound";
 
 type FolderColor = "zinc" | "blue" | "emerald" | "violet" | "rose" | "amber";
 type Folder = { id: string; name: string; parentId: string | null; color?: FolderColor };
@@ -41,12 +42,20 @@ export default function NotasPage() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const playSound = useSound();
 
   // Modals
   const [modalType, setModalType] = useState<"folder" | "note" | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState<FolderColor>("blue");
   const [newNoteTitle, setNewNoteTitle] = useState("");
+
+  useEffect(() => {
+    if (window.location.hash === "#new") {
+      setModalType("note");
+      window.history.replaceState(null, "", "/notas");
+    }
+  }, []);
 
   const resolvedFolderId = selectedFolderId === NO_FOLDER ? null : selectedFolderId;
   const activeFolderId =
@@ -82,6 +91,7 @@ export default function NotasPage() {
   const handleAddFolder = () => {
     const t = newFolderName.trim();
     if (!t) return;
+    playSound("success");
     setFolders([...folders, { id: createId(), name: t, parentId: activeFolderId, color: newFolderColor }]);
     setNewFolderName("");
     setNewFolderColor("blue");
@@ -91,6 +101,7 @@ export default function NotasPage() {
   const handleAddNote = () => {
     const t = newNoteTitle.trim();
     if (!t) return;
+    playSound("success");
     const n: Note = { id: createId(), folderId: activeFolderId, title: t, content: "", updatedAt: new Date().toISOString() };
     setNotes([n, ...notes]);
     setSelectedNoteId(n.id);
@@ -102,6 +113,7 @@ export default function NotasPage() {
   const handleRemoveFolder = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm("¿Seguro que querés eliminar esta carpeta? Sus notas irán a 'Sin carpeta'.")) return;
+    playSound("pop");
     setNotes(notes.map((n) => n.folderId === id ? { ...n, folderId: null } : n));
     const toRemove = new Set<string>();
     const collect = (fid: string) => {
@@ -131,12 +143,15 @@ export default function NotasPage() {
 
   const handleRemoveNote = (id: string) => {
     if (!window.confirm("¿Seguro que querés eliminar esta nota?")) return;
+    playSound("pop");
     setNotes(notes.filter((n) => n.id !== id));
     if (selectedNoteId === id) { setSelectedNoteId(null); setMobileTab("lista"); }
   };
 
-  const togglePin = (id: string) =>
+  const togglePin = (id: string) => {
+    playSound("tap");
     setNotes(notes.map((n) => n.id === id ? { ...n, pinned: !n.pinned } : n));
+  };
 
   // ── Folder chips (horizontal scrollable) ──
   const allFolderChips = [
@@ -151,13 +166,13 @@ export default function NotasPage() {
       <div className="flex-none px-4 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--c-border)" }}>
         <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Notas</p>
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => setModalType("folder")}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border"
+          <button type="button" onClick={() => { playSound("click"); setModalType("folder"); }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border active:scale-95"
             style={{ color: "var(--c-text-muted)", borderColor: "var(--c-border)", background: "var(--c-glass)" }}>
             <FolderIcon size={12} /> Carpeta
           </button>
-          <button type="button" onClick={() => setModalType("note")}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-400 transition-all">
+          <button type="button" onClick={() => { playSound("click"); setModalType("note"); }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-400 transition-all active:scale-95 shadow-[0_0_12px_rgba(59,130,246,0.3)]">
             <Plus size={12} /> Nota
           </button>
         </div>
@@ -170,8 +185,8 @@ export default function NotasPage() {
           const iconColor = chip.color ? getIconColor(chip.color) : "text-zinc-400";
           return (
             <button key={chip.id} type="button"
-              onClick={() => setSelectedFolderId(chip.id)}
-              className={`group flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border whitespace-nowrap ${
+              onClick={() => { playSound("tap"); setSelectedFolderId(chip.id); }}
+              className={`group flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border whitespace-nowrap active:scale-95 ${
                 isSelected
                   ? "bg-blue-500/12 border-blue-500/25 text-blue-400"
                   : "hover:bg-white/[0.04]"
@@ -214,20 +229,27 @@ export default function NotasPage() {
             const isSelected = note.id === activeNoteId;
             return (
               <button key={note.id} type="button"
-                onClick={() => { setSelectedNoteId(note.id); setMobileTab("editor"); }}
-                className={`w-full text-left rounded-xl px-3.5 py-3 transition-all duration-200 relative border ${
-                  isSelected ? "bg-blue-500/10 border-blue-500/25" : "border-transparent hover:bg-white/[0.03]"
+                onClick={() => { playSound("tap"); setSelectedNoteId(note.id); setMobileTab("editor"); }}
+                className={`w-full text-left rounded-2xl px-4 py-3.5 transition-all duration-200 relative border overflow-hidden group ${
+                  isSelected ? "bg-[var(--c-glass)] border-blue-500/30 shadow-md ring-1 ring-blue-500/20" : "border-[var(--c-border)] bg-[var(--c-surface)] hover:scale-[1.01] hover:border-blue-500/20 shadow-sm"
                 }`}>
+                
+                {/* Decoration gradient for selected note */}
+                {isSelected && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full pointer-events-none -mt-4 -mr-4" />}
+                
                 {note.pinned && (
-                  <span className="absolute top-2.5 right-3 text-[10px]">📌</span>
+                  <span className="absolute top-3 right-3 text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded-md font-bold">📌</span>
                 )}
-                <p className="text-xs font-bold truncate pr-4" style={{ color: "var(--c-text)" }}>{note.title}</p>
-                <p className="text-[11px] truncate mt-1" style={{ color: "var(--c-text-muted)" }}>
+                <p className={`text-[13px] font-extrabold truncate pr-6 ${isSelected ? "text-blue-400" : ""}`} style={!isSelected ? { color: "var(--c-text)" } : {}}>{note.title}</p>
+                <p className="text-[11px] line-clamp-2 mt-1.5 leading-relaxed" style={{ color: "var(--c-text-muted)" }}>
                   {note.content || "Sin contenido…"}
                 </p>
-                <p className="text-[10px] mt-1.5" style={{ color: "var(--c-text-muted)", opacity: 0.6 }}>
-                  {new Date(note.updatedAt).toLocaleDateString("es-AR")}
-                </p>
+                <div className="flex items-center gap-1 mt-2.5">
+                  <Clock size={10} style={{ color: "var(--c-text-muted)", opacity: 0.6 }} />
+                  <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: "var(--c-text-muted)", opacity: 0.6 }}>
+                    {new Date(note.updatedAt).toLocaleDateString("es-AR")}
+                  </p>
+                </div>
               </button>
             );
           })
@@ -241,8 +263,8 @@ export default function NotasPage() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Editor toolbar */}
       <div className="flex-none px-4 pt-3 pb-2 flex items-center gap-2" style={{ borderBottom: "1px solid var(--c-border)" }}>
-        <button type="button" onClick={() => setMobileTab("lista")}
-          className="sm:hidden flex-none text-xs font-bold transition-all" style={{ color: "var(--c-text-muted)" }}>
+        <button type="button" onClick={() => { playSound("tap"); setMobileTab("lista"); }}
+          className="sm:hidden flex-none px-2 py-1.5 rounded-lg text-xs font-bold transition-all hover:bg-white/[0.05]" style={{ color: "var(--c-text-muted)" }}>
           ← Volver
         </button>
         <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 flex-1" style={{ color: "var(--c-text-muted)" }}>
@@ -258,7 +280,7 @@ export default function NotasPage() {
             </button>
             <select
               value={selectedNote.folderId ?? ""}
-              onChange={(e) => updateNote(selectedNote.id, { folderId: e.target.value || null })}
+              onChange={(e) => { playSound("tap"); updateNote(selectedNote.id, { folderId: e.target.value || null }); }}
               className="text-[11px] font-semibold rounded-lg px-2 py-1.5 focus:outline-none transition-all appearance-none"
               style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }}
               title="Mover a carpeta"
@@ -316,13 +338,13 @@ export default function NotasPage() {
     <div className="h-full flex flex-col overflow-hidden relative">
       {/* Tab bar mobile */}
       <div className="flex-none sm:hidden grid grid-cols-2" style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}>
-        <button type="button" onClick={() => setMobileTab("lista")}
-          className={`py-3 text-xs font-bold transition-all ${mobileTab === "lista" ? "border-b-2 border-blue-400" : "opacity-50"}`}
+        <button type="button" onClick={() => { playSound("tap"); setMobileTab("lista"); }}
+          className={`py-3 text-xs font-bold transition-all active:scale-95 ${mobileTab === "lista" ? "border-b-2 border-blue-400" : "opacity-50"}`}
           style={mobileTab === "lista" ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
           Notas
         </button>
-        <button type="button" onClick={() => setMobileTab("editor")}
-          className={`py-3 text-xs font-bold transition-all ${mobileTab === "editor" ? "border-b-2 border-emerald-400" : "opacity-50"}`}
+        <button type="button" onClick={() => { playSound("tap"); setMobileTab("editor"); }}
+          className={`py-3 text-xs font-bold transition-all active:scale-95 ${mobileTab === "editor" ? "border-b-2 border-emerald-400" : "opacity-50"}`}
           style={mobileTab === "editor" ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
           Editor
         </button>

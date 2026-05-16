@@ -4,20 +4,20 @@
    THEME TOKENS — v3.0
 ═══════════════════════════════════════ */
 :root {
-  /* Dark (default) — rich grays like Vercel/Linear */
-  --c-bg:         #09090B;
-  --c-bg-2:       #111113;
-  --c-surface:    rgba(17, 17, 19, 0.85);
-  --c-glass:      rgba(255, 255, 255, 0.04);
-  --c-border:     rgba(255, 255, 255, 0.07);
-  --c-border-2:   rgba(255, 255, 255, 0.14);
-  --c-text:       #FAFAFA;
-  --c-text-muted: rgba(255, 255, 255, 0.40);
+  /* Dark (default) — Sleek modern dark mode (ClickUp/Linear style) */
+  --c-bg:         #13151A;
+  --c-bg-2:       #1D2027;
+  --c-surface:    rgba(29, 32, 39, 0.85);
+  --c-glass:      rgba(255, 255, 255, 0.05);
+  --c-border:     rgba(255, 255, 255, 0.08);
+  --c-border-2:   rgba(255, 255, 255, 0.16);
+  --c-text:       #F8FAFC;
+  --c-text-muted: rgba(248, 250, 252, 0.50);
   --c-invert:     #09090b;
-  --shadow:       0 1px 3px rgba(0,0,0,0.4);
-  --shadow-lg:    0 8px 30px rgba(0,0,0,0.5);
-  --glow-green:   rgba(16, 185, 129, 0.06);
-  --glow-violet:  rgba(139, 92, 246, 0.06);
+  --shadow:       0 2px 8px rgba(0,0,0,0.4);
+  --shadow-lg:    0 8px 30px rgba(0,0,0,0.6);
+  --glow-green:   rgba(16, 185, 129, 0.08);
+  --glow-violet:  rgba(139, 92, 246, 0.08);
   --radius:       16px;
   --radius-sm:    12px;
   --radius-xs:    8px;
@@ -25,19 +25,19 @@
 
 /* Light theme overrides */
 [data-theme="light"] {
-  --c-bg:         #F4F4F5;
-  --c-bg-2:       #E8E8EC;
-  --c-surface:    rgba(255, 255, 255, 0.85);
-  --c-glass:      rgba(255, 255, 255, 0.60);
-  --c-border:     rgba(0, 0, 0, 0.07);
-  --c-border-2:   rgba(0, 0, 0, 0.14);
-  --c-text:       #09090b;
-  --c-text-muted: rgba(0, 0, 0, 0.45);
-  --c-invert:     #f0f0f0;
-  --shadow:       0 1px 3px rgba(0,0,0,0.08);
-  --shadow-lg:    0 8px 30px rgba(0,0,0,0.10);
-  --glow-green:   rgba(16, 185, 129, 0.04);
-  --glow-violet:  rgba(139, 92, 246, 0.04);
+  --c-bg:         #F8FAFC;
+  --c-bg-2:       #F1F5F9;
+  --c-surface:    rgba(255, 255, 255, 0.9);
+  --c-glass:      rgba(255, 255, 255, 0.8);
+  --c-border:     rgba(15, 23, 42, 0.08);
+  --c-border-2:   rgba(15, 23, 42, 0.16);
+  --c-text:       #0F172A;
+  --c-text-muted: rgba(15, 23, 42, 0.55);
+  --c-invert:     #f8fafc;
+  --shadow:       0 2px 8px rgba(0,0,0,0.04);
+  --shadow-lg:    0 8px 30px rgba(0,0,0,0.08);
+  --glow-green:   rgba(16, 185, 129, 0.03);
+  --glow-violet:  rgba(139, 92, 246, 0.03);
 }
 
 /* ═══════════════════════════════════════
@@ -301,9 +301,14 @@ input[type="date"] {
     border-radius: 3px;
     transition: all 0.15s ease;
   }
-  .heatmap-cell:hover {
-    transform: scale(1.3);
-    z-index: 1;
+  @media (hover: hover) {
+    .heatmap-cell:hover {
+      transform: scale(1.3);
+      z-index: 1;
+    }
+  }
+  .heatmap-cell:active {
+    transform: scale(0.9);
   }
 
   /* ── Segmented control ── */
