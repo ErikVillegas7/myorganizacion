@@ -383,4 +383,26 @@ input[type="date"] {
       padding-bottom: 0;
     }
   }
+
+  @media (min-width: 768px) {
+    .desktop-dialog {
+      --dialog-w: 32rem;
+      --dialog-h: 86vh;
+      position: absolute;
+      inset: auto;
+      left: calc((100vw - min(var(--dialog-w), calc(100vw - 2rem))) / 2);
+      top: calc((100vh - min(var(--dialog-h), calc(100vh - 2rem))) / 2);
+      width: min(var(--dialog-w), calc(100vw - 2rem));
+      max-height: min(var(--dialog-h), calc(100vh - 2rem));
+      border-radius: 24px;
+      border: 1px solid var(--c-border);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .desktop-page-shell {
+      width: 100%;
+      max-width: 1120px;
+      margin-inline: auto;
+    }
+  }
 }

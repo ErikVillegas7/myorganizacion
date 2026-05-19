@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
+import { useSession } from "next-auth/react";
+import { filterActive, mergeById, normalizeItems, nowIso } from "@/lib/sync-utils";
 import {
-  Folder as FolderIcon, FolderOpen, FileText, Edit3,
-  Clock, Trash2, Search, X, ChevronRight, Plus, CheckCircle2,
+  Folder as FolderIcon, FileText, Edit3,
+  Clock, Trash2, Search, X, Plus, CheckCircle2,
 } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
+import { ViewHelp } from "@/components/view-help";
 
 type FolderColor = "zinc" | "blue" | "emerald" | "violet" | "rose" | "amber";
-type Folder = { id: string; name: string; parentId: string | null; color?: FolderColor };
-type Note = { id: string; folderId: string | null; title: string; content: string; updatedAt: string; pinned?: boolean };
+type Folder = { id: string; name: string; parentId: string | null; color?: FolderColor; updatedAt?: string; deletedAt?: string | null };
+type Note = { id: string; folderId: string | null; title: string; content: string; updatedAt?: string; pinned?: boolean; deletedAt?: string | null };
 
 const FOLDER_COLORS: { id: FolderColor; label: string; icon: string; bg: string }[] = [
   { id: "zinc",    label: "Gris",    icon: "text-zinc-400",    bg: "bg-zinc-400" },
@@ -23,76 +26,151 @@ const FOLDER_COLORS: { id: FolderColor; label: string; icon: string; bg: string 
 const getIconColor = (color?: string) => FOLDER_COLORS.find((c) => c.id === color)?.icon ?? "text-zinc-400";
 
 const initialFolders: Folder[] = [{ id: "general", name: "General", parentId: null, color: "blue" }];
+const demoUpdatedAt = "2026-05-16T00:00:00.000Z";
 const initialNotes: Note[] = [{
   id: "nota-bienvenida", folderId: "general",
   title: "Bienvenido", content: "Escribí acá tus ideas rápidas.",
-  updatedAt: new Date().toISOString(),
+  updatedAt: demoUpdatedAt,
 }];
 const NO_FOLDER = "__no_folder__";
 const createId = () => crypto.randomUUID();
+const formatUpdatedAt = (value?: string) => new Date(value ?? demoUpdatedAt);
 type TabId = "lista" | "editor";
 
 export default function NotasPage() {
-  const [folders, setFolders] = useLocalStorageState<Folder[]>("mo_folders", initialFolders);
-  const [notes, setNotes] = useLocalStorageState<Note[]>("mo_notes", initialNotes);
+  const [folders, setFolders] = useLocalStorageState<Folder[]>("mo_folders", initialFolders, {
+    normalize: normalizeItems,
+  });
+  const [notes, setNotes] = useLocalStorageState<Note[]>("mo_notes", initialNotes, {
+    normalize: normalizeItems,
+  });
+  const { status } = useSession();
+  const [remoteReady, setRemoteReady] = useState(false);
+  const localSnapshot = useRef({ folders, notes });
   const [selectedFolderId, setSelectedFolderId] = useState<string>(initialFolders[0]?.id ?? NO_FOLDER);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(initialNotes[0]?.id ?? null);
   const [search, setSearch] = useState("");
   const [mobileTab, setMobileTab] = useState<TabId>("lista");
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
   const playSound = useSound();
 
-  // Modals
-  const [modalType, setModalType] = useState<"folder" | "note" | null>(null);
+  useEffect(() => {
+    localSnapshot.current = { folders, notes };
+  }, [folders, notes]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+
+    const loadRemote = async () => {
+      try {
+        const res = await fetch("/api/notes", { cache: "no-store" });
+        if (!res.ok) {
+          if (!cancelled) setRemoteReady(true);
+          return;
+        }
+        const data = await res.json();
+        const remoteNotes = normalizeItems(
+          (Array.isArray(data?.notes) ? data.notes : []) as Note[],
+        );
+        const remoteFolders = normalizeItems(
+          (Array.isArray(data?.folders) ? data.folders : []) as Folder[],
+        );
+        const local = {
+          notes: normalizeItems(localSnapshot.current.notes),
+          folders: normalizeItems(localSnapshot.current.folders),
+        };
+        const mergedNotes = mergeById(local.notes, remoteNotes);
+        const mergedFolders = mergeById(local.folders, remoteFolders);
+        const remoteEmpty = remoteNotes.length === 0 && remoteFolders.length === 0;
+        const localHasData = local.notes.length > 0 || local.folders.length > 0;
+
+        if (remoteEmpty && localHasData) {
+          await fetch("/api/notes", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notes: local.notes, folders: local.folders }),
+          });
+        }
+
+        if (!cancelled) {
+          setNotes(mergedNotes);
+          setFolders(mergedFolders);
+        }
+      } catch {
+        // Keep local data if remote sync fails.
+      }
+
+      if (!cancelled) setRemoteReady(true);
+    };
+
+    void loadRemote();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, setNotes, setFolders]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !remoteReady) return;
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/notes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes, folders }),
+      });
+    }, 800);
+
+    return () => window.clearTimeout(timeout);
+  }, [status, remoteReady, notes, folders]);
+
+  const [modalType, setModalType] = useState<"folder" | "note" | null>(
+    () => typeof window !== "undefined" && window.location.hash === "#new" ? "note" : null,
+  );
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState<FolderColor>("blue");
   const [newNoteTitle, setNewNoteTitle] = useState("");
 
   useEffect(() => {
     if (window.location.hash === "#new") {
-      setModalType("note");
       window.history.replaceState(null, "", "/notas");
     }
   }, []);
+
+  const activeFolders = useMemo(() => filterActive(folders), [folders]);
+  const activeNotes = useMemo(() => filterActive(notes), [notes]);
 
   const resolvedFolderId = selectedFolderId === NO_FOLDER ? null : selectedFolderId;
   const activeFolderId =
     resolvedFolderId === null
       ? null
-      : folders.some((f) => f.id === resolvedFolderId) ? resolvedFolderId : folders[0]?.id ?? null;
+      : activeFolders.some((f) => f.id === resolvedFolderId) ? resolvedFolderId : activeFolders[0]?.id ?? null;
 
   const visibleNotes = useMemo(() => {
-    const inFolder = notes.filter((n) => n.folderId === activeFolderId);
+    const inFolder = activeNotes.filter((n) => n.folderId === activeFolderId);
     const pinned = inFolder.filter((n) => n.pinned);
     const rest = inFolder.filter((n) => !n.pinned);
     const sorted = [...pinned, ...rest];
     if (!search.trim()) return sorted;
     const q = search.toLowerCase();
     return sorted.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q));
-  }, [notes, activeFolderId, search]);
+  }, [activeNotes, activeFolderId, search]);
 
   const activeNoteId =
-    selectedNoteId && notes.some((n) => n.id === selectedNoteId)
+    selectedNoteId && activeNotes.some((n) => n.id === selectedNoteId)
       ? selectedNoteId : visibleNotes[0]?.id ?? null;
-  const selectedNote = activeNoteId ? notes.find((n) => n.id === activeNoteId) ?? null : null;
+  const selectedNote = activeNoteId ? activeNotes.find((n) => n.id === activeNoteId) ?? null : null;
 
   const noteCountForFolder = (folderId: string | null) =>
-    notes.filter((n) => n.folderId === folderId).length;
-
-  const toggleCollapse = (id: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    activeNotes.filter((n) => n.folderId === folderId).length;
 
   const handleAddFolder = () => {
     const t = newFolderName.trim();
     if (!t) return;
     playSound("success");
-    setFolders([...folders, { id: createId(), name: t, parentId: activeFolderId, color: newFolderColor }]);
+    const now = nowIso();
+    setFolders([
+      ...folders,
+      { id: createId(), name: t, parentId: activeFolderId, color: newFolderColor, updatedAt: now, deletedAt: null },
+    ]);
     setNewFolderName("");
     setNewFolderColor("blue");
     setModalType(null);
@@ -102,7 +180,7 @@ export default function NotasPage() {
     const t = newNoteTitle.trim();
     if (!t) return;
     playSound("success");
-    const n: Note = { id: createId(), folderId: activeFolderId, title: t, content: "", updatedAt: new Date().toISOString() };
+    const n: Note = { id: createId(), folderId: activeFolderId, title: t, content: "", updatedAt: nowIso(), deletedAt: null };
     setNotes([n, ...notes]);
     setSelectedNoteId(n.id);
     setNewNoteTitle("");
@@ -110,53 +188,30 @@ export default function NotasPage() {
     setMobileTab("editor");
   };
 
-  const handleRemoveFolder = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm("¿Seguro que querés eliminar esta carpeta? Sus notas irán a 'Sin carpeta'.")) return;
-    playSound("pop");
-    setNotes(notes.map((n) => n.folderId === id ? { ...n, folderId: null } : n));
-    const toRemove = new Set<string>();
-    const collect = (fid: string) => {
-      toRemove.add(fid);
-      folders.filter((f) => f.parentId === fid).forEach((f) => collect(f.id));
-    };
-    collect(id);
-    setFolders(folders.filter((f) => !toRemove.has(f.id)));
-    setNotes(notes.map((n) => toRemove.has(n.folderId ?? "") ? { ...n, folderId: null } : n));
-    if (selectedFolderId === id) setSelectedFolderId(NO_FOLDER);
+  const updateNote = (id: string, changes: Partial<Note>) => {
+    const now = nowIso();
+    setNotes(notes.map((n) => n.id === id ? { ...n, ...changes, updatedAt: changes.updatedAt ?? now } : n));
   };
-
-  const handleStartRename = (folder: Folder, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setRenamingId(folder.id);
-    setRenameValue(folder.name);
-  };
-
-  const handleSaveRename = (id: string) => {
-    const t = renameValue.trim();
-    if (t) setFolders(folders.map((f) => f.id === id ? { ...f, name: t } : f));
-    setRenamingId(null);
-  };
-
-  const updateNote = (id: string, changes: Partial<Note>) =>
-    setNotes(notes.map((n) => n.id === id ? { ...n, ...changes } : n));
 
   const handleRemoveNote = (id: string) => {
     if (!window.confirm("¿Seguro que querés eliminar esta nota?")) return;
     playSound("pop");
-    setNotes(notes.filter((n) => n.id !== id));
+    const now = nowIso();
+    setNotes(notes.map((n) => n.id === id ? { ...n, deletedAt: now, updatedAt: now } : n));
     if (selectedNoteId === id) { setSelectedNoteId(null); setMobileTab("lista"); }
   };
 
   const togglePin = (id: string) => {
     playSound("tap");
-    setNotes(notes.map((n) => n.id === id ? { ...n, pinned: !n.pinned } : n));
+    const target = notes.find((n) => n.id === id);
+    if (!target) return;
+    updateNote(id, { pinned: !target.pinned });
   };
 
   // ── Folder chips (horizontal scrollable) ──
   const allFolderChips = [
     { id: NO_FOLDER, name: "Todo", color: undefined as FolderColor | undefined, count: noteCountForFolder(null) },
-    ...folders.filter(f => f.parentId === null).map(f => ({ id: f.id, name: f.name, color: f.color, count: noteCountForFolder(f.id) })),
+    ...activeFolders.filter(f => f.parentId === null).map(f => ({ id: f.id, name: f.name, color: f.color, count: noteCountForFolder(f.id) })),
   ];
 
   /* ─ Panel izquierdo ─ */
@@ -164,7 +219,13 @@ export default function NotasPage() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header with actions */}
       <div className="flex-none px-4 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--c-border)" }}>
-        <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Notas</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Notas</p>
+          <ViewHelp title="Ayuda rápida de notas" label="Ayuda">
+            <p>Organizá tus apuntes en carpetas y notas. Usá búsqueda para encontrar texto dentro de tus notas.</p>
+            <p>Utilizá etiquetas para clasificar tus notas y acceder rápidamente a ellas.</p>
+          </ViewHelp>
+        </div>
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => { playSound("click"); setModalType("folder"); }}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border active:scale-95"
@@ -247,7 +308,7 @@ export default function NotasPage() {
                 <div className="flex items-center gap-1 mt-2.5">
                   <Clock size={10} style={{ color: "var(--c-text-muted)", opacity: 0.6 }} />
                   <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: "var(--c-text-muted)", opacity: 0.6 }}>
-                    {new Date(note.updatedAt).toLocaleDateString("es-AR")}
+                    {formatUpdatedAt(note.updatedAt).toLocaleDateString("es-AR")}
                   </p>
                 </div>
               </button>
@@ -286,7 +347,7 @@ export default function NotasPage() {
               title="Mover a carpeta"
             >
               <option value="">Sin carpeta</option>
-              {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              {activeFolders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
             <button type="button" onClick={() => handleRemoveNote(selectedNote.id)}
               className="flex items-center gap-1 p-1.5 rounded-lg transition-all hover:text-rose-400 hover:bg-rose-500/10"
@@ -298,7 +359,7 @@ export default function NotasPage() {
       </div>
 
       {selectedNote ? (
-        <div className="flex-1 flex flex-col overflow-hidden px-5 py-4 gap-3">
+        <div className="flex-1 flex flex-col overflow-hidden px-5 lg:px-8 py-4 gap-3 max-w-5xl w-full mx-auto">
           <input value={selectedNote.title}
             onChange={(e) => updateNote(selectedNote.id, { title: e.target.value, updatedAt: new Date().toISOString() })}
             placeholder="Título…"
@@ -317,7 +378,7 @@ export default function NotasPage() {
 
           <div className="flex-none pt-2 flex items-center gap-1.5 text-[11px] font-semibold" style={{ borderTop: "1px solid var(--c-border)", color: "var(--c-text-muted)", opacity: 0.6 }}>
             <Clock size={11} />
-            Editado: {new Date(selectedNote.updatedAt).toLocaleString("es-AR")}
+            Editado: {formatUpdatedAt(selectedNote.updatedAt).toLocaleString("es-AR")}
           </div>
         </div>
       ) : (
@@ -350,8 +411,8 @@ export default function NotasPage() {
         </button>
       </div>
       
-      <div className="flex-1 overflow-hidden flex">
-        <div className={`overflow-hidden sm:w-80 sm:flex-none sm:block ${mobileTab === "lista" ? "flex-1 block" : "hidden"}`}
+      <div className="flex-1 overflow-hidden flex sm:max-w-7xl sm:mx-auto sm:w-full">
+        <div className={`overflow-hidden sm:w-80 lg:w-96 sm:flex-none sm:block ${mobileTab === "lista" ? "flex-1 block" : "hidden"}`}
           style={{ borderRight: "1px solid var(--c-border)" }}>
           {leftPanel}
         </div>
@@ -421,7 +482,7 @@ export default function NotasPage() {
                   style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
               </div>
               <p className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>
-                Se guardará en: <strong>{folders.find(f => f.id === activeFolderId)?.name ?? "Sin carpeta"}</strong>
+                Se guardará en: <strong>{activeFolders.find(f => f.id === activeFolderId)?.name ?? "Sin carpeta"}</strong>
               </p>
             </div>
             <div className="px-5 pb-5 pt-2">

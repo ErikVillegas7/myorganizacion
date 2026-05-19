@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useMemo, useEffect, useState } from "react";
 import {
   LayoutDashboard, FileText, Calendar, BookOpen,
-  Activity, Menu, X, Settings, Plus,
+  Activity, Menu, X, Settings, Plus, Cloud,
 } from "lucide-react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import { useSettings } from "@/lib/use-settings";
 import { useSound } from "@/lib/use-sound";
+import { filterActive } from "@/lib/sync-utils";
+import { clearLocalAppData, syncLocalDataBeforeLogout } from "@/lib/logout-sync";
 
 type AppShellProps = { children: React.ReactNode };
 
@@ -22,14 +26,17 @@ const navItems = [
   { href: "/habitos",    label: "Hábitos",    icon: Activity,        color: "text-amber-400",   activeBg: "bg-amber-500/12",   activeBorder: "border-amber-500/25" },
 ];
 
-type CalEvent = { id: string; date: string };
+type CalEvent = { id: string; date: string; deletedAt?: string | null };
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [hasLocalData, setHasLocalData] = useState(false);
   const [events] = useLocalStorageState<CalEvent[]>("mo_events", []);
   const [settings] = useSettings();
+  const { data: session, status } = useSession();
   const playSound = useSound();
 
   // Apply theme
@@ -37,29 +44,72 @@ export function AppShell({ children }: AppShellProps) {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
 
-  const activeItem = useMemo(
-    () => navItems.find((item) => item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)),
-    [pathname],
-  );
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const storageKeys = [
+        "mo_notes",
+        "mo_folders",
+        "mo_events",
+        "mo_habits",
+        "mo_subjects",
+        "mo_units",
+        "mo_settings",
+      ];
+      const hasData = storageKeys.some((key) => {
+        const raw = window.localStorage.getItem(key);
+        if (!raw) return false;
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed)
+            ? parsed.length > 0
+            : parsed && typeof parsed === "object" && Object.keys(parsed).length > 0;
+        } catch {
+          return true;
+        }
+      });
+      setHasLocalData(hasData);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [events, settings]);
 
   const isAjustes = pathname.startsWith("/ajustes");
+
+  const activeEvents = useMemo(() => filterActive(events), [events]);
 
   const upcomingBadge = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const in7 = new Date(today); in7.setDate(today.getDate() + 7);
-    return events.filter((e) => {
+    return activeEvents.filter((e) => {
       const d = new Date(`${e.date}T00:00:00`);
       return d >= today && d <= in7;
     }).length;
-  }, [events]);
+  }, [activeEvents]);
 
-  const avatarEl = settings.avatar ? (
-    <img src={settings.avatar} alt="avatar" className="w-full h-full object-cover" />
+  const displayName = session?.user?.name ?? settings.name;
+  const avatarEl = session?.user?.image ? (
+    <Image src={session.user.image} alt="avatar" width={28} height={28} unoptimized className="w-full h-full object-cover" />
+  ) : settings.avatar ? (
+    <Image src={settings.avatar} alt="avatar" width={28} height={28} unoptimized className="w-full h-full object-cover" />
   ) : (
     <span className="text-[11px] font-bold" style={{ color: "var(--c-text)" }}>
-      {(settings.name?.[0] ?? "U").toUpperCase()}
+      {(displayName?.[0] ?? "U").toUpperCase()}
     </span>
   );
+
+  const handleSafeSignOut = async () => {
+    if (isSigningOut) return;
+    playSound("click");
+    setIsSigningOut(true);
+    try {
+      await syncLocalDataBeforeLogout();
+      clearLocalAppData();
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      setIsSigningOut(false);
+      window.alert("No se pudo guardar todo antes de salir. No borré los datos locales; revisá la conexión e intentá de nuevo.");
+    }
+  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: "var(--c-bg)" }}>
@@ -76,15 +126,16 @@ export function AppShell({ children }: AppShellProps) {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold truncate leading-tight" style={{ color: "var(--c-text)" }}>
-              {activeItem?.label ?? (isAjustes ? "Ajustes" : "Mi Organización")}
+              Mi Organización
             </p>
           </div>
         </div>
 
         {/* Right side: avatar → settings */}
-        <Link href="/ajustes"
-          className="flex items-center gap-2 flex-none rounded-xl px-2 py-1.5 transition-all hover:opacity-80"
-          style={isAjustes ? { background: "var(--c-glass)", border: "1px solid var(--c-border)" } : {}}>
+        <div className="flex items-center gap-2 flex-none">
+          <Link href="/ajustes"
+            className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-all hover:opacity-80"
+            style={isAjustes ? { background: "var(--c-glass)", border: "1px solid var(--c-border)" } : {}}>
           <div
             className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-none"
             style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}
@@ -92,10 +143,52 @@ export function AppShell({ children }: AppShellProps) {
             {avatarEl}
           </div>
           <span className="hidden sm:block text-xs font-semibold truncate max-w-[100px]" style={{ color: "var(--c-text-muted)" }}>
-            {settings.name}
+            {displayName}
           </span>
-        </Link>
+          </Link>
+          {status === "authenticated" ? (
+            <button
+              type="button"
+              onClick={() => void handleSafeSignOut()}
+              disabled={isSigningOut}
+              className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all hover:bg-white/[0.04]"
+              style={{ color: "var(--c-text-muted)", borderColor: "var(--c-border)", opacity: isSigningOut ? 0.65 : 1 }}
+            >
+              {isSigningOut ? "Guardando..." : "Salir"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { playSound("click"); void signIn("google"); }}
+              className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all hover:bg-white/[0.04]"
+              style={{ color: "var(--c-text-muted)", borderColor: "var(--c-border)" }}
+            >
+              Entrar
+            </button>
+          )}
+        </div>
       </header>
+
+      {status === "unauthenticated" && hasLocalData && (
+        <div
+          className="flex-none flex items-center gap-3 px-4 sm:px-5 py-2.5 border-b"
+          style={{ background: "var(--c-bg-2)", borderColor: "var(--c-border)" }}
+        >
+          <div className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center flex-none bg-blue-500/15 text-blue-400">
+            <Cloud size={16} />
+          </div>
+          <p className="min-w-0 flex-1 text-xs font-semibold leading-snug" style={{ color: "var(--c-text-muted)" }}>
+            Tus datos están guardados solo en este navegador. Iniciá sesión para sincronizarlos y no perderlos al cambiar de computadora.
+          </p>
+          <button
+            type="button"
+            onClick={() => { playSound("click"); void signIn("google"); }}
+            className="flex-none rounded-lg bg-blue-500 px-3 py-1.5 text-[11px] font-bold text-white transition-all hover:bg-blue-400 active:scale-95"
+          >
+            Sincronizar
+          </button>
+        </div>
+      )}
 
       {/* ── BODY ── */}
       <div className="flex-1 flex overflow-hidden">
@@ -154,7 +247,7 @@ export function AppShell({ children }: AppShellProps) {
                 {avatarEl}
               </div>
               <div>
-                <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>{settings.name}</p>
+                <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>{displayName}</p>
                 <p className="text-[11px]" style={{ color: "var(--c-text-muted)" }}>Ver ajustes</p>
               </div>
             </Link>
@@ -261,10 +354,10 @@ export function AppShell({ children }: AppShellProps) {
             )}
           </div>
 
-          {/* Item 3: Hábitos */}
-          <Link href="/habitos" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex flex-col items-center gap-1 w-14 transition-all" style={pathname.startsWith("/habitos") ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
-            <Activity size={20} strokeWidth={pathname.startsWith("/habitos") ? 2.2 : 1.8} className={pathname.startsWith("/habitos") ? "text-amber-400" : ""} />
-            <span className="text-[10px] font-medium leading-none">Hábitos</span>
+          {/* Item 3: Materias */}
+          <Link href="/materias" onClick={() => { playSound("tap"); setCreateMenuOpen(false); }} className="flex flex-col items-center gap-1 w-14 transition-all" style={pathname.startsWith("/materias") ? { color: "var(--c-text)" } : { color: "var(--c-text-muted)" }}>
+            <BookOpen size={20} strokeWidth={pathname.startsWith("/materias") ? 2.2 : 1.8} className={pathname.startsWith("/materias") ? "text-violet-400" : ""} />
+            <span className="text-[10px] font-medium leading-none">Materias</span>
           </Link>
 
           {/* Item 4: Menu / Más */}

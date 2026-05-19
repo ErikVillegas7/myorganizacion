@@ -3,7 +3,11 @@
 import { useCallback, useRef, useEffect } from "react";
 import { useSettings } from "./use-settings";
 
-type SoundType = "pop" | "tap" | "success" | "click";
+export type SoundType = "pop" | "tap" | "success" | "click";
+
+type WindowWithLegacyAudio = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
 
 export function useSound() {
   const [settings] = useSettings();
@@ -24,7 +28,10 @@ export function useSound() {
     
     try {
       if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioContextConstructor =
+          window.AudioContext || (window as WindowWithLegacyAudio).webkitAudioContext;
+        if (!AudioContextConstructor) return;
+        audioCtxRef.current = new AudioContextConstructor();
       }
       const ctx = audioCtxRef.current;
       
@@ -87,7 +94,7 @@ export function useSound() {
     } catch (e) {
       console.error("Audio play failed", e);
     }
-  }, []);
+  }, [settings.soundEnabled]);
 
   return play;
 }

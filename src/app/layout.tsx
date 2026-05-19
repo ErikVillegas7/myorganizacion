@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { AppSessionProvider } from "@/components/session-provider";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
@@ -38,7 +39,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden antialiased`}
     >
       <body className="h-full overflow-hidden bg-background text-foreground">
-        <AppShell>{children}</AppShell>
+        <AppSessionProvider>
+          <AppShell>{children}</AppShell>
+        </AppSessionProvider>
         <Analytics />
       </body>
     </html>

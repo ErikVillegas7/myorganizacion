@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
+import { useSession } from "next-auth/react";
+import { filterActive, mergeById, normalizeItems, nowIso } from "@/lib/sync-utils";
 import { 
   Activity, Target, Plus, Check, Trash2, X, Flame, 
   MoreVertical, Book, Dumbbell, Droplets, Heart, 
   Zap, Monitor, Music, Coffee, Briefcase, PenTool, Moon
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
+import { ViewHelp } from "@/components/view-help";
 
 type HabitColor = "zinc" | "blue" | "emerald" | "violet" | "rose" | "amber";
 
@@ -18,6 +22,8 @@ type Habit = {
   icon?: string;
   color: HabitColor;
   history: Record<string, boolean>;
+  updatedAt?: string;
+  deletedAt?: string | null;
 };
 
 const HABIT_COLORS: { id: HabitColor; bg: string; text: string; border: string; active: string }[] = [
@@ -29,7 +35,7 @@ const HABIT_COLORS: { id: HabitColor; bg: string; text: string; border: string; 
   { id: "amber",   bg: "bg-amber-500/15",   text: "text-amber-400",   border: "border-amber-500/25",   active: "bg-amber-400" },
 ];
 
-const ICONS_MAP: Record<string, any> = {
+const ICONS_MAP: Record<string, LucideIcon> = {
   Target, Book, Dumbbell, Droplets, Heart, 
   Zap, Flame, Monitor, Music, Coffee, 
   Briefcase, PenTool, Moon, Activity
@@ -86,8 +92,15 @@ const calcStreak = (history: Record<string, boolean>): number => {
 };
 
 export default function HabitosPage() {
-  const [habits, setHabits] = useLocalStorageState<Habit[]>("mo_habits", initialHabits);
-  const [showModal, setShowModal] = useState(false);
+  const [habits, setHabits] = useLocalStorageState<Habit[]>("mo_habits", initialHabits, {
+    normalize: normalizeItems,
+  });
+  const { status } = useSession();
+  const [remoteReady, setRemoteReady] = useState(false);
+  const localSnapshot = useRef({ habits });
+  const [showModal, setShowModal] = useState(
+    () => typeof window !== "undefined" && window.location.hash === "#new",
+  );
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   
@@ -99,22 +112,83 @@ export default function HabitosPage() {
   const playSound = useSound();
   const weekDays = useMemo(() => getCurrentWeekDays(), []);
   const heatmapDays = useMemo(() => getHeatmapDays(), []);
+
+  useEffect(() => {
+    localSnapshot.current = { habits };
+  }, [habits]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+
+    const loadRemote = async () => {
+      try {
+        const res = await fetch("/api/habits", { cache: "no-store" });
+        if (!res.ok) {
+          if (!cancelled) setRemoteReady(true);
+          return;
+        }
+        const data = await res.json();
+        const remoteHabits = normalizeItems(
+          (Array.isArray(data?.habits) ? data.habits : []) as Habit[],
+        );
+        const localHabits = normalizeItems(localSnapshot.current.habits);
+        const mergedHabits = mergeById(localHabits, remoteHabits);
+        const remoteEmpty = remoteHabits.length === 0;
+        const localHasData = localHabits.length > 0;
+
+        if (remoteEmpty && localHasData) {
+          await fetch("/api/habits", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ habits: localHabits }),
+          });
+        }
+
+        if (!cancelled) {
+          setHabits(mergedHabits);
+        }
+      } catch {
+        // Keep local data if remote sync fails.
+      }
+
+      if (!cancelled) setRemoteReady(true);
+    };
+
+    void loadRemote();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, setHabits]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !remoteReady) return;
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/habits", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ habits }),
+      });
+    }, 600);
+
+    return () => window.clearTimeout(timeout);
+  }, [status, remoteReady, habits]);
   
-  // Auto-open modal if hash is #new
   useEffect(() => {
     if (window.location.hash === "#new") {
-      setShowModal(true);
       window.history.replaceState(null, "", "/habitos");
     }
   }, []);
 
   const todayKey = fmtKey(new Date());
-  const habitsTodayDone = habits.filter((h) => h.history[todayKey]).length;
+  const activeHabits = useMemo(() => filterActive(habits), [habits]);
+  const habitsTodayDone = activeHabits.filter((h) => h.history[todayKey]).length;
 
   const handleAdd = () => {
     const t = newName.trim();
     if (!t) return;
-    setHabits([...habits, { id: createId(), name: t, icon: newIcon, color: newColor, history: {} }]);
+    const now = nowIso();
+    setHabits([...habits, { id: createId(), name: t, icon: newIcon, color: newColor, history: {}, updatedAt: now, deletedAt: null }]);
     setNewName("");
     setNewIcon("Target");
     setNewColor("amber");
@@ -125,7 +199,8 @@ export default function HabitosPage() {
   const handleRemove = (id: string) => {
     if (!window.confirm("¿Seguro que querés eliminar este hábito y todo su progreso?")) return;
     playSound("pop");
-    setHabits(habits.filter((h) => h.id !== id));
+    const now = nowIso();
+    setHabits(habits.map((h) => h.id === id ? { ...h, deletedAt: now, updatedAt: now } : h));
     setMenuOpenId(null);
   };
 
@@ -134,7 +209,7 @@ export default function HabitosPage() {
       if (h.id !== habitId) return h;
       const willBeDone = !h.history[dayKey];
       playSound(willBeDone ? "success" : "pop");
-      return { ...h, history: { ...h.history, [dayKey]: willBeDone } };
+      return { ...h, history: { ...h.history, [dayKey]: willBeDone }, updatedAt: nowIso() };
     }));
   };
 
@@ -221,22 +296,31 @@ export default function HabitosPage() {
       )}
 
       {/* ── Header ── */}
-      <div className="flex-none px-4 sm:px-6 py-4 flex items-center justify-between z-10" style={{ background: "var(--c-bg)" }}>
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight leading-none" style={{ color: "var(--c-text)" }}>Hábitos</h1>
-          <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {habits.length} completados hoy</p>
+      <div className="flex-none px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between z-10 desktop-page-shell" style={{ background: "var(--c-bg)" }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-extrabold tracking-tight leading-none truncate" style={{ color: "var(--c-text)" }}>Hábitos</h1>
+            <p className="text-xs mt-1.5 font-medium truncate" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {activeHabits.length} completados hoy</p>
+          </div>
         </div>
-        <button type="button" onClick={() => { playSound("click"); setShowModal(true); }}
-          className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
-          style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
-          <Plus size={20} strokeWidth={2.5} />
-        </button>
+        <div className="flex items-center gap-2">
+          <ViewHelp title="Ayuda rápida de hábitos" label="Ayuda">
+            <p>Agregá hábitos diarios y marcá los completados para mantener constancia.</p>
+            <p>Revisá tu progreso semanal y ajustá tus metas según sea necesario.</p>
+          </ViewHelp>
+          <button type="button" onClick={() => { playSound("click"); setShowModal(true); }}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
+            style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
+            <Plus size={20} strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
 
       {/* ── Habits list ── */}
-      <div className="scroll-panel px-4 sm:px-6 py-2 space-y-4 pb-32">
-        {habits.length === 0 ? (
-          <div className="py-16 text-center flex flex-col items-center gap-4">
+      <div className="scroll-panel px-4 sm:px-6 lg:px-8 py-2 pb-32 lg:pb-10">
+        <div className="desktop-page-shell grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-start">
+        {activeHabits.length === 0 ? (
+          <div className="py-16 text-center flex flex-col items-center gap-4 lg:col-span-2">
             <div className="w-16 h-16 rounded-3xl bg-[var(--c-glass)] border flex items-center justify-center" style={{ borderColor: "var(--c-border)" }}>
               <Target size={28} className="opacity-40" />
             </div>
@@ -246,7 +330,7 @@ export default function HabitosPage() {
             </div>
           </div>
         ) : (
-          habits.map((habit, index) => {
+          activeHabits.map((habit, index) => {
             const streak = calcStreak(habit.history);
             const color = HABIT_COLORS.find(c => c.id === habit.color) || HABIT_COLORS[0];
             const isMenuOpen = menuOpenId === habit.id;
@@ -379,6 +463,7 @@ export default function HabitosPage() {
             );
           })
         )}
+        </div>
       </div>
     </div>
   );

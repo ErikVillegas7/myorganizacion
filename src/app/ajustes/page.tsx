@@ -1,17 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { useSettings, AppTheme } from "@/lib/use-settings";
 import {
   User, Sun, Moon, Download, Upload, Trash2,
   Camera, Settings, CheckCircle2, AlertTriangle, Volume2, VolumeX,
 } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
+import { APP_STORAGE_KEYS } from "@/lib/logout-sync";
 
-const ALL_STORAGE_KEYS = [
-  "mo_notes", "mo_folders", "mo_events", "mo_habits",
-  "mo_subjects", "mo_units", "mo_settings",
-];
+const ALL_STORAGE_KEYS: string[] = [...APP_STORAGE_KEYS];
 
 function exportBackup() {
   const data: Record<string, unknown> = {};
@@ -86,7 +85,7 @@ export default function AjustesPage() {
 
   return (
     <div className="h-full overflow-y-auto scroll-panel">
-      <div className="p-5 sm:p-8 max-w-xl mx-auto flex flex-col gap-5">
+      <div className="p-5 sm:p-8 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-5">
 
         {/* Header */}
         <div className="flex items-center gap-3 pt-1 anim-slide-down">
@@ -109,7 +108,7 @@ export default function AjustesPage() {
             <div className="relative flex-none">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden flex items-center justify-center border-2" style={{ background: "var(--c-glass)", borderColor: "var(--c-border-2)" }}>
                 {settings.avatar ? (
-                  <img src={settings.avatar} alt="avatar" className="w-full h-full object-cover" />
+                  <Image src={settings.avatar} alt="avatar" width={80} height={80} unoptimized className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-2xl sm:text-3xl font-extrabold" style={{ color: "var(--c-text-muted)" }}>
                     {(settings.name?.[0] ?? "U").toUpperCase()}
@@ -189,7 +188,7 @@ export default function AjustesPage() {
             <Download size={12} /> Datos y backup
           </h2>
           <p className="text-xs leading-relaxed" style={{ color: "var(--c-text-muted)" }}>
-            Tus datos se guardan localmente en este navegador. Exportá un backup para usarlos en otro dispositivo.
+            Si iniciás sesión con Google, tus datos se sincronizan. También podés exportar un backup local para usarlo en otro dispositivo.
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => { playSound("click"); exportBackup(); }}
