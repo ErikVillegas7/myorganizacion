@@ -357,11 +357,28 @@ function SubjectModal({
                     }} className="h-4 w-4 rounded border-zinc-500" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="number" disabled={!quizRequired} min={1} max={20} step={1} value={quizRequiredCount === 0 ? "" : quizRequiredCount}
-                    onChange={(e) => setQuizRequiredCount(e.target.value === "" ? 0 : Math.max(1, Number(e.target.value)))}
-                    className="w-full rounded-xl px-2 py-2 text-sm text-center" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} placeholder="Cantidad" />
-                  <input type="number" disabled={!quizRequired} min={1} max={10} step={0.5} value={quizRequiredGrade === 0 ? "" : quizRequiredGrade} onChange={(e) => setQuizRequiredGrade(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full rounded-xl px-2 py-2 text-sm text-center" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} placeholder="Nota mínima" />
+                  <div className="flex items-center gap-1 rounded-xl px-2 py-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
+                    <button type="button" disabled={!quizRequired || quizRequiredCount <= 1}
+                      onClick={() => setQuizRequiredCount((prev) => Math.max(1, prev - 1))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>−</button>
+                    <input type="number" disabled={!quizRequired} min={1} max={20} step={1} value={quizRequiredCount === 0 ? "" : quizRequiredCount}
+                      onChange={(e) => setQuizRequiredCount(e.target.value === "" ? 0 : Math.max(1, Number(e.target.value)))}
+                      className="flex-1 rounded-xl px-2 py-2 text-sm text-center" style={{ background: "transparent", border: "none", color: "var(--c-text)" }} placeholder="Cantidad" />
+                    <button type="button" disabled={!quizRequired}
+                      onClick={() => setQuizRequiredCount((prev) => Math.min(20, prev + 1))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>+</button>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-xl px-2 py-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
+                    <button type="button" disabled={!quizRequired || (quizRequiredGrade ?? 1) <= 1}
+                      onClick={() => setQuizRequiredGrade((prev) => Math.max(1, (prev ?? 1) - 0.5))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>−</button>
+                    <input type="number" disabled={!quizRequired} min={1} max={10} step={0.5} value={quizRequiredGrade === 0 ? "" : quizRequiredGrade}
+                      onChange={(e) => setQuizRequiredGrade(e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="flex-1 rounded-xl px-2 py-2 text-sm text-center" style={{ background: "transparent", border: "none", color: "var(--c-text)" }} placeholder="Nota mínima" />
+                    <button type="button" disabled={!quizRequired || (quizRequiredGrade ?? 1) >= 10}
+                      onClick={() => setQuizRequiredGrade((prev) => Math.min(10, (prev ?? 1) + 0.5))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>+</button>
+                  </div>
                 </div>
               </label>
 
@@ -377,11 +394,28 @@ function SubjectModal({
                     }} className="h-4 w-4 rounded border-zinc-500" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="number" disabled={!groupWorkRequired} min={0} max={20} step={1} value={groupWorkRequiredCount === 0 ? "" : groupWorkRequiredCount}
-                    onChange={(e) => setGroupWorkRequiredCount(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                    className="w-full rounded-xl px-2 py-2 text-sm text-center" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} placeholder="Cantidad" />
-                  <input type="number" disabled={!groupWorkRequired} min={1} max={10} step={0.5} value={groupWorkRequiredGrade === 0 ? "" : groupWorkRequiredGrade} onChange={(e) => setGroupWorkRequiredGrade(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full rounded-xl px-2 py-2 text-sm text-center" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} placeholder="Nota mínima" />
+                  <div className="flex items-center gap-1 rounded-xl px-2 py-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
+                    <button type="button" disabled={!groupWorkRequired || groupWorkRequiredCount <= 0}
+                      onClick={() => setGroupWorkRequiredCount((prev) => Math.max(0, prev - 1))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>−</button>
+                    <input type="number" disabled={!groupWorkRequired} min={0} max={20} step={1} value={groupWorkRequiredCount === 0 ? "" : groupWorkRequiredCount}
+                      onChange={(e) => setGroupWorkRequiredCount(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+                      className="flex-1 rounded-xl px-2 py-2 text-sm text-center" style={{ background: "transparent", border: "none", color: "var(--c-text)" }} placeholder="Cantidad" />
+                    <button type="button" disabled={!groupWorkRequired}
+                      onClick={() => setGroupWorkRequiredCount((prev) => Math.min(20, prev + 1))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>+</button>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-xl px-2 py-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
+                    <button type="button" disabled={!groupWorkRequired || (groupWorkRequiredGrade ?? 1) <= 1}
+                      onClick={() => setGroupWorkRequiredGrade((prev) => Math.max(1, (prev ?? 1) - 0.5))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>−</button>
+                    <input type="number" disabled={!groupWorkRequired} min={1} max={10} step={0.5} value={groupWorkRequiredGrade === 0 ? "" : groupWorkRequiredGrade}
+                      onChange={(e) => setGroupWorkRequiredGrade(e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="flex-1 rounded-xl px-2 py-2 text-sm text-center" style={{ background: "transparent", border: "none", color: "var(--c-text)" }} placeholder="Nota mínima" />
+                    <button type="button" disabled={!groupWorkRequired || (groupWorkRequiredGrade ?? 1) >= 10}
+                      onClick={() => setGroupWorkRequiredGrade((prev) => Math.min(10, (prev ?? 1) + 0.5))}
+                      className="w-8 h-8 rounded-xl text-sm font-bold transition-all" style={{ background: "transparent", color: "var(--c-text)" }}>+</button>
+                  </div>
                 </div>
               </label>
             </div>
