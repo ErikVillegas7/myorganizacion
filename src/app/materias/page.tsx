@@ -1079,7 +1079,7 @@ export default function MateriasPage() {
                       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-3 ${c.bg} ${c.text} shadow-sm`}>
                         <IconComp size={20} strokeWidth={2} />
                       </div>
-                      <h3 className="font-bold text-lg leading-tight truncate" style={{ color: "var(--c-text)" }}>{subject.name}</h3>
+                      <h3 className="font-bold text-lg leading-tight" style={{ color: "var(--c-text)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{subject.name}</h3>
                       {buildConditionLabel(subject) && (
                         <p className="text-[10px] font-semibold mt-1 whitespace-normal break-words" style={{ color: "var(--c-text-muted)" }}>
                           ⚠️ {buildConditionLabel(subject)}
