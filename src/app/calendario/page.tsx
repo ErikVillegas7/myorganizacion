@@ -323,11 +323,13 @@ export default function CalendarioPage() {
       {/* ── Header Principal ── */}
       <div className="flex-none px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between z-10 desktop-page-shell" style={{ background: "var(--c-bg)" }}>
         <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight leading-none truncate" style={{ color: "var(--c-text)" }}>Calendario</h1>
-            <p className="text-xs mt-1.5 font-medium truncate" style={{ color: "var(--c-text-muted)" }}>
-              Revisá fechas de parciales, entregas y eventos.
-            </p>
+          <div className="min-w-0 flex items-center gap-3">
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight leading-none truncate" style={{ color: "var(--c-text)" }}>Calendario</h1>
+              <p className="text-xs mt-1.5 font-medium truncate" style={{ color: "var(--c-text-muted)" }}>
+                Revisá fechas de parciales, entregas y eventos.
+              </p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -335,7 +337,7 @@ export default function CalendarioPage() {
             <p>Agregá fechas importantes como examen, entrega o cuestionario para no perder el ritmo de la cursada.</p>
             <p>Utilizá los colores para identificar eventos y mantené tu calendario organizado.</p>
           </ViewHelp>
-          <button type="button" onClick={() => openNewEvent()}
+          <button type="button" onClick={() => openNewEvent()} aria-label="Crear evento"
             className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
             style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
             <Plus size={20} strokeWidth={2.5} />
@@ -646,9 +648,18 @@ export default function CalendarioPage() {
 
                 return (
                   <div key={e.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => openEventDetail(e)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault();
+                        openEventDetail(e);
+                      }
+                    }}
+                    aria-label={`Ver detalles de ${e.title}`}
                     title="Ver detalles"
-                    className="group relative rounded-[20px] p-4 transition-all overflow-hidden anim-slide-up flex items-start justify-between cursor-pointer"
+                    className="group relative rounded-[20px] p-4 transition-all overflow-hidden anim-slide-up flex items-start justify-between cursor-pointer text-left w-full"
                     style={{ 
                       background: "var(--c-surface)", 
                       border: `1px solid ${isUrgent ? s.hex + "40" : "var(--c-border)"}`,

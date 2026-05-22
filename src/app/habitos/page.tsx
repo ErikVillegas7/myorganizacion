@@ -296,23 +296,41 @@ export default function HabitosPage() {
       )}
 
       {/* ── Header ── */}
-      <div className="flex-none px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between z-10 desktop-page-shell" style={{ background: "var(--c-bg)" }}>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight leading-none truncate" style={{ color: "var(--c-text)" }}>Hábitos</h1>
-            <p className="text-xs mt-1.5 font-medium truncate" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {activeHabits.length} completados hoy</p>
+      <div className="flex-none px-4 sm:px-6 lg:px-8 py-4 z-10 desktop-page-shell" style={{ background: "var(--c-bg)" }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center bg-gradient-to-br from-amber-500/20 to-orange-500/10 border" style={{ borderColor: "var(--c-border)" }}>
+              <Activity size={18} className="text-amber-400" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-none" style={{ color: "var(--c-text)" }}>Hábitos</h1>
+              <p className="text-[11px] mt-0.5 font-medium" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {activeHabits.length} hoy</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <ViewHelp title="Ayuda rápida de hábitos" label="Ayuda">
+              <p>Agregá hábitos diarios y marcá los completados para mantener constancia.</p>
+              <p>Revisá tu progreso semanal y ajustá tus metas según sea necesario.</p>
+            </ViewHelp>
+            <button type="button" onClick={() => { playSound("click"); setShowModal(true); }} aria-label="Crear hábito"
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
+              style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
+              <Plus size={20} strokeWidth={2.5} />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ViewHelp title="Ayuda rápida de hábitos" label="Ayuda">
-            <p>Agregá hábitos diarios y marcá los completados para mantener constancia.</p>
-            <p>Revisá tu progreso semanal y ajustá tus metas según sea necesario.</p>
-          </ViewHelp>
-          <button type="button" onClick={() => { playSound("click"); setShowModal(true); }}
-            className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
-            style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
-            <Plus size={20} strokeWidth={2.5} />
-          </button>
+        <div className="flex gap-2 mt-3 flex-wrap">
+          {[
+            [habitsTodayDone, "Hoy", "bg-emerald-500/15 text-emerald-400", "bg-emerald-400"],
+            [activeHabits.length, "Activos", "bg-blue-500/15 text-blue-400", "bg-blue-400"],
+          ].concat(activeHabits.length > 0 ? [[Math.max(...activeHabits.map(h => calcStreak(h.history))), "Mejor racha", "bg-amber-500/15 text-amber-400", "bg-amber-400"]] : [])
+           .filter(([c]) => (c as number) > 0)
+           .map(([count, label, classes, dot]) => (
+            <div key={label as string} className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg ${classes as string}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${dot as string}`} />
+              {count as number} {label as string}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -328,6 +346,14 @@ export default function HabitosPage() {
               <p className="text-base font-bold" style={{ color: "var(--c-text)" }}>Ningún hábito todavía</p>
               <p className="text-xs mt-1 max-w-[220px] mx-auto" style={{ color: "var(--c-text-muted)" }}>Creá tu primer hábito para empezar a construir tu rutina semanal.</p>
             </div>
+            <button
+              type="button"
+              onClick={() => { playSound("click"); setShowModal(true); }}
+              className="rounded-full px-4 py-2 text-xs font-bold transition-all active:scale-95"
+              style={{ background: "var(--c-text)", color: "var(--c-bg)" }}
+            >
+              Crear mi primer hábito
+            </button>
           </div>
         ) : (
           activeHabits.map((habit, index) => {
@@ -352,8 +378,8 @@ export default function HabitosPage() {
                     <div className={`w-11 h-11 rounded-[14px] flex items-center justify-center flex-none ${color.bg} ${color.text}`}>
                       {renderIcon(habit)}
                     </div>
-                    <div>
-                      <h3 className="text-[15px] font-bold leading-tight" style={{ color: "var(--c-text)" }}>{habit.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="text-[15px] font-bold leading-tight truncate" style={{ color: "var(--c-text)" }}>{habit.name}</h3>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <Flame size={12} className={streak > 0 ? "text-amber-500" : "text-zinc-500 opacity-50"} />
                         <span className="text-[11px] font-semibold" style={{ color: streak > 0 ? "var(--c-text)" : "var(--c-text-muted)" }}>
@@ -365,7 +391,12 @@ export default function HabitosPage() {
                   
                   {/* Menú de opciones */}
                   <div className="relative">
-                    <button onClick={() => { playSound("click"); setMenuOpenId(isMenuOpen ? null : habit.id); }} className="p-2 rounded-xl transition-all hover:bg-white/[0.04]" style={{ color: "var(--c-text-muted)" }}>
+                    <button
+                      onClick={() => { playSound("click"); setMenuOpenId(isMenuOpen ? null : habit.id); }}
+                      aria-label={`Opciones de ${habit.name}`}
+                      className="p-2 rounded-xl transition-all hover:bg-white/[0.04]"
+                      style={{ color: "var(--c-text-muted)" }}
+                    >
                       <MoreVertical size={18} />
                     </button>
                     {isMenuOpen && (

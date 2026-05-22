@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useMemo, useEffect, useState } from "react";
 import {
   LayoutDashboard, FileText, Calendar, BookOpen,
-  Activity, Menu, X, Settings, Plus, Cloud,
+  Activity, Menu, X, Settings, Plus, Cloud, GitBranch,
 } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
@@ -24,6 +24,7 @@ const navItems = [
   { href: "/calendario", label: "Calendario", icon: Calendar,        color: "text-rose-400",    activeBg: "bg-rose-500/12",    activeBorder: "border-rose-500/25" },
   { href: "/materias",   label: "Materias",   icon: BookOpen,        color: "text-violet-400",  activeBg: "bg-violet-500/12",  activeBorder: "border-violet-500/25" },
   { href: "/habitos",    label: "Hábitos",    icon: Activity,        color: "text-amber-400",   activeBg: "bg-amber-500/12",   activeBorder: "border-amber-500/25" },
+  { href: "/plan",       label: "Plan",        icon: GitBranch,       color: "text-teal-400",    activeBg: "bg-teal-500/12",    activeBorder: "border-teal-500/25" },
 ];
 
 type CalEvent = { id: string; date: string; deletedAt?: string | null };

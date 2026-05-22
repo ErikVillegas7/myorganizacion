@@ -37,6 +37,10 @@ const createId = () => crypto.randomUUID();
 const formatUpdatedAt = (value?: string) => new Date(value ?? demoUpdatedAt);
 type TabId = "lista" | "editor";
 
+const sanitizeText = (text: string) => {
+  return text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+};
+
 export default function NotasPage() {
   const [folders, setFolders] = useLocalStorageState<Folder[]>("mo_folders", initialFolders, {
     normalize: normalizeItems,
@@ -177,7 +181,7 @@ export default function NotasPage() {
   };
 
   const handleAddNote = () => {
-    const t = newNoteTitle.trim();
+    const t = sanitizeText(newNoteTitle.trim());
     if (!t) return;
     playSound("success");
     const n: Note = { id: createId(), folderId: activeFolderId, title: t, content: "", updatedAt: nowIso(), deletedAt: null };
@@ -190,7 +194,11 @@ export default function NotasPage() {
 
   const updateNote = (id: string, changes: Partial<Note>) => {
     const now = nowIso();
-    setNotes(notes.map((n) => n.id === id ? { ...n, ...changes, updatedAt: changes.updatedAt ?? now } : n));
+    const cleanChanges = { ...changes };
+    if (cleanChanges.title !== undefined) cleanChanges.title = sanitizeText(cleanChanges.title);
+    if (cleanChanges.content !== undefined) cleanChanges.content = sanitizeText(cleanChanges.content);
+
+    setNotes(notes.map((n) => n.id === id ? { ...n, ...cleanChanges, updatedAt: cleanChanges.updatedAt ?? now } : n));
   };
 
   const handleRemoveNote = (id: string) => {
@@ -218,24 +226,43 @@ export default function NotasPage() {
   const leftPanel = (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header with actions */}
-      <div className="flex-none px-4 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--c-border)" }}>
-        <div className="flex items-center gap-3">
-          <p className="text-sm font-bold" style={{ color: "var(--c-text)" }}>Notas</p>
-          <ViewHelp title="Ayuda rápida de notas" label="Ayuda">
-            <p>Organizá tus apuntes en carpetas y notas. Usá búsqueda para encontrar texto dentro de tus notas.</p>
-            <p>Utilizá etiquetas para clasificar tus notas y acceder rápidamente a ellas.</p>
-          </ViewHelp>
+      <div className="flex-none px-4 pt-4 pb-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border" style={{ borderColor: "var(--c-border)" }}>
+              <FileText size={18} className="text-blue-400" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-none" style={{ color: "var(--c-text)" }}>Notas</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ViewHelp title="Ayuda rápida de notas" label="Ayuda">
+              <p>Organizá tus apuntes en carpetas y notas. Usá búsqueda para encontrar texto dentro de tus notas.</p>
+              <p>Utilizá etiquetas para clasificar tus notas y acceder rápidamente a ellas.</p>
+            </ViewHelp>
+            <button type="button" onClick={() => { playSound("click"); setModalType("folder"); }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border active:scale-95"
+              style={{ color: "var(--c-text-muted)", borderColor: "var(--c-border)", background: "var(--c-glass)" }}>
+              <FolderIcon size={12} /> Carpeta
+            </button>
+            <button type="button" onClick={() => { playSound("click"); setModalType("note"); }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-400 transition-all active:scale-95 shadow-[0_0_12px_rgba(59,130,246,0.3)]">
+              <Plus size={12} /> Nota
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => { playSound("click"); setModalType("folder"); }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border active:scale-95"
-            style={{ color: "var(--c-text-muted)", borderColor: "var(--c-border)", background: "var(--c-glass)" }}>
-            <FolderIcon size={12} /> Carpeta
-          </button>
-          <button type="button" onClick={() => { playSound("click"); setModalType("note"); }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-400 transition-all active:scale-95 shadow-[0_0_12px_rgba(59,130,246,0.3)]">
-            <Plus size={12} /> Nota
-          </button>
+        <div className="flex gap-2 mt-3 flex-wrap">
+          {[
+            [activeFolders.length, "Carpetas", "bg-violet-500/15 text-violet-400", "bg-violet-400"],
+            [activeNotes.length, "Notas", "bg-blue-500/15 text-blue-400", "bg-blue-400"],
+            [activeNotes.filter(n => n.pinned).length, "Ancladas", "bg-amber-500/15 text-amber-400", "bg-amber-400"],
+          ].filter(([c]) => (c as number) > 0).map(([count, label, classes, dot]) => (
+            <div key={label as string} className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg ${classes as string}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${dot as string}`} />
+              {count as number} {label as string}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -270,7 +297,7 @@ export default function NotasPage() {
             className="w-full rounded-xl pl-9 pr-8 py-2 text-xs font-medium focus:outline-none transition-all"
             style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
           {search && (
-            <button type="button" onClick={() => setSearch("")}
+            <button type="button" onClick={() => setSearch("")} aria-label="Limpiar búsqueda"
               className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--c-text-muted)" }}>
               <X size={13} />
             </button>
@@ -284,6 +311,16 @@ export default function NotasPage() {
           <div className="py-10 text-center flex flex-col items-center gap-2">
             <FileText size={24} style={{ color: "var(--c-text-muted)", opacity: 0.4 }} />
             <p className="text-xs" style={{ color: "var(--c-text-muted)" }}>{search ? "Sin resultados." : "Sin notas aquí."}</p>
+            {!search && (
+              <button
+                type="button"
+                onClick={() => { playSound("click"); setModalType("note"); }}
+                className="mt-1 rounded-full px-3.5 py-1.5 text-[11px] font-bold transition-all active:scale-95"
+                style={{ background: "var(--c-text)", color: "var(--c-bg)" }}
+              >
+                Crear mi primera nota
+              </button>
+            )}
           </div>
         ) : (
           visibleNotes.map((note) => {

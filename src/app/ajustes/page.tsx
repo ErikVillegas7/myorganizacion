@@ -3,12 +3,25 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { useSettings, AppTheme } from "@/lib/use-settings";
+import { useLocalStorageState } from "@/lib/use-local-storage";
 import {
   User, Sun, Moon, Download, Upload, Trash2,
-  Camera, Settings, CheckCircle2, AlertTriangle, Volume2, VolumeX,
+  Camera, Settings, CheckCircle2, AlertTriangle, Volume2, VolumeX, GraduationCap,
 } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
 import { APP_STORAGE_KEYS } from "@/lib/logout-sync";
+import { STORAGE_KEYS } from "@/lib/materias/constants";
+import { PLAN_TEMPLATES, PLAN_STORAGE_KEY } from "@/lib/materias/plan-templates";
+import type { Subject } from "@/types/materias";
+
+function normalizeName(n: string) {
+  return n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+}
+
+function subjectExists(existing: Subject[], s: Subject) {
+  const norm = normalizeName(s.name);
+  return existing.some(e => e.id === s.id || (norm && normalizeName(e.name) === norm));
+}
 
 const ALL_STORAGE_KEYS: string[] = [...APP_STORAGE_KEYS];
 
@@ -51,6 +64,8 @@ export default function AjustesPage() {
   const [name, setName] = useState(settings.name);
   const [saved, setSaved] = useState(false);
   const [showDanger, setShowDanger] = useState(false);
+  const [subjects, setSubjects] = useLocalStorageState<Subject[]>(STORAGE_KEYS.subjects, [], { normalize: (v: unknown) => v as Subject[] });
+  const [planKey, setPlanKey] = useLocalStorageState<string | null>(PLAN_STORAGE_KEY, null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const playSound = useSound();
@@ -182,8 +197,53 @@ export default function AjustesPage() {
 
         </section>
 
-        {/* ── Backup ── */}
+        {/* ── Plan de carrera ── */}
         <section className="rounded-2xl p-5 border flex flex-col gap-4 anim-slide-up" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", animationDelay: "0.1s" }}>
+          <h2 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--c-text-muted)" }}>
+            <GraduationCap size={12} /> Plan de carrera
+          </h2>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--c-text-muted)" }}>
+            {planKey
+              ? `Plan activo: ${PLAN_TEMPLATES.find(p => p.key === planKey)?.label ?? planKey}`
+              : "Elegí un plan de estudio para cargar todas las materias automáticamente."}
+          </p>
+          {PLAN_TEMPLATES.map(pt => {
+            const active = planKey === pt.key;
+            return (
+              <button key={pt.key} type="button"
+                onClick={() => {
+                  if (active) {
+                    if (confirm(`Desactivar plan "${pt.label}"? Las materias del plan no se eliminarán.`)) {
+                      setPlanKey(null);
+                    }
+                    return;
+                  }
+                  const toAdd = pt.subjects.filter(s => !subjectExists(subjects, s));
+                  if (toAdd.length === 0) {
+                    setPlanKey(pt.key);
+                    return;
+                  }
+                  if (confirm(`Se agregarán ${toAdd.length} materias nuevas del plan "${pt.label}". Las materias que ya tenés no se modifican. ¿Continuar?`)) {
+                    setPlanKey(pt.key);
+                    setSubjects([...subjects, ...toAdd] as Subject[]);
+                  }
+                }}
+                className={`w-full rounded-xl border-2 px-4 py-3 text-left transition-all ${active ? "border-violet-500/40" : ""}`}
+                style={{ background: active ? "var(--c-glass)" : "var(--c-glass)", borderColor: active ? "#a78bfa66" : "var(--c-border)" }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold" style={{ color: active ? "var(--c-text)" : "var(--c-text)" }}>{pt.label}</p>
+                  {active && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-violet-500/15 text-violet-400">Activo</span>}
+                </div>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "var(--c-text-muted)" }}>
+                  {pt.subjects.length} materias · {new Set(pt.subjects.map(s => s.year)).size} años
+                </p>
+              </button>
+            );
+          })}
+        </section>
+
+        {/* ── Backup ── */}
+        <section className="rounded-2xl p-5 border flex flex-col gap-4 anim-slide-up" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", animationDelay: "0.15s" }}>
           <h2 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--c-text-muted)" }}>
             <Download size={12} /> Datos y backup
           </h2>
@@ -207,7 +267,7 @@ export default function AjustesPage() {
         </section>
 
         {/* ── Zona peligrosa ── */}
-        <section className="rounded-2xl p-5 border border-rose-500/20 bg-rose-500/5 flex flex-col gap-3 anim-slide-up" style={{ animationDelay: "0.15s" }}>
+        <section className="rounded-2xl p-5 border border-rose-500/20 bg-rose-500/5 flex flex-col gap-3 anim-slide-up" style={{           animationDelay: "0.2s" }}>
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-rose-400 flex items-center gap-2">
             <AlertTriangle size={12} /> Zona peligrosa
           </h2>
