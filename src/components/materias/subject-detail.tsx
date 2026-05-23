@@ -6,7 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import type { Subject, Unit } from "@/types/materias";
 import type { TabId } from "@/types/materias";
 import { ICONS_MAP, MATERIA_KINDS, TAB_OPTIONS } from "@/lib/materias/constants";
-import { getColor, getActualCondition, conditionPillClasses } from "@/lib/materias/utils";
+import { getColor, getActualCondition, conditionPillClasses, isSubjectIncomplete } from "@/lib/materias/utils";
 import { ConditionsTab } from "./conditions-tab";
 import { AttendanceTab } from "./attendance-tab";
 import { GradesTab } from "./grades-tab";
@@ -43,6 +43,7 @@ export function SubjectDetail(props: DetailProps) {
   const c = getColor(subject.color);
   const IconComp: LucideIcon = (subject.icon && ICONS_MAP[subject.icon]) ? ICONS_MAP[subject.icon]! : BookOpen;
   const cond = getActualCondition(subject);
+  const incomplete = isSubjectIncomplete(subject);
 
   return (
     <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -92,6 +93,17 @@ export function SubjectDetail(props: DetailProps) {
             </button>
           </div>
         </div>
+
+        {incomplete && (
+          <div className="flex-none mx-4 sm:mx-5 mt-3 px-4 py-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center gap-2">
+            <p className="text-xs font-semibold text-sky-400 flex-1">
+              Esta materia está incompleta. Tocá <span className="font-black">Editar</span> y completala con la información de tu docente.
+            </p>
+            <button onClick={() => { playSound("tap"); onEdit(); }} className="text-xs font-bold text-white bg-sky-500 px-3 py-1.5 rounded-lg hover:bg-sky-400 transition-all active:scale-95 shrink-0">
+              Editar
+            </button>
+          </div>
+        )}
 
         <div className="flex-none px-4 sm:px-5 pt-2.5 pb-1 flex gap-1.5 overflow-x-auto scroll-x" style={{ scrollbarWidth: "none" }}>
           {TAB_OPTIONS.map(t => (
