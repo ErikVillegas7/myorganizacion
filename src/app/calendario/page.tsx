@@ -461,9 +461,9 @@ export default function CalendarioPage() {
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: "var(--c-text-muted)" }}>Tipo</label>
                   <select value={formType} onChange={e => setFormType(e.target.value as EventType)}
-                    className="w-full rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none transition-all"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none transition-all [color-scheme:dark]"
                     style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }}>
-                    {eventTypes.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+                    {eventTypes.map(t => <option key={t.id} value={t.id} className="text-sm font-bold bg-[#1a1a2e] text-white">{t.icon} {t.label}</option>)}
                   </select>
                 </div>
               </div>
