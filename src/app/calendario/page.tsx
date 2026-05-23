@@ -447,7 +447,8 @@ export default function CalendarioPage() {
             </div>
             <div className="px-5 py-4 space-y-4">
               <input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Título del evento"
-                className="w-full bg-transparent text-lg font-bold focus:outline-none" style={{ color: "var(--c-text)" }} />
+                className="w-full rounded-xl px-3.5 py-3 text-base font-bold focus:outline-none transition-all"
+                style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
               <textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} rows={2} placeholder="Descripción (opcional)"
                 className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none transition-all"
                 style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
