@@ -5,6 +5,7 @@ import { MATERIA_KINDS, ICONS_MAP } from "@/lib/materias/constants";
 import {
   getColor, calcAvg, getActualCondition, conditionPillClasses,
   calcAttendancePct, getAttendanceInfo, getSubjectProgress, isCorrelativesOk, buildConditionLabel,
+  isSubjectIncomplete,
 } from "@/lib/materias/utils";
 import { CircularProgress } from "./circular-progress";
 
@@ -22,6 +23,7 @@ export function SubjectCard({ subject, units, allSubjects, onSelect, index = 0 }
   const attendancePct = calcAttendancePct(subject.clasesTotal, subject.clasesAsistidas);
   const attInfo = getAttendanceInfo(attendancePct, subject.umbralAsistencia ?? 75);
   const corrWarning = !isCorrelativesOk(subject, allSubjects);
+  const incomplete = isSubjectIncomplete(subject);
   const IconComp: LucideIcon = (subject.icon && ICONS_MAP[subject.icon]) ? ICONS_MAP[subject.icon]! : BookOpen;
 
   return (
@@ -52,6 +54,11 @@ export function SubjectCard({ subject, units, allSubjects, onSelect, index = 0 }
                 <AlertTriangle size={9} /> Correlativas
               </span>
             )}
+            {incomplete && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-500/10 text-sky-400">
+                Completá la materia
+              </span>
+            )}
           </div>
         </div>
         <div className="flex-none">
@@ -67,12 +74,16 @@ export function SubjectCard({ subject, units, allSubjects, onSelect, index = 0 }
             {avg ?? "—"}
           </p>
         </div>
-        {attendancePct !== null && (
+        {incomplete ? (
+          <p className="text-[9px] font-semibold text-right leading-tight max-w-[120px]" style={{ color: "var(--c-text-muted)" }}>
+            Completá con tu docente
+          </p>
+        ) : attendancePct !== null ? (
           <div className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 ${attInfo.bgClass}`}>
             <UserCheck size={12} className={attInfo.textClass} />
             <span className={`text-[11px] font-bold ${attInfo.textClass}`}>{attendancePct}%</span>
           </div>
-        )}
+        ) : null}
       </div>
     </button>
   );

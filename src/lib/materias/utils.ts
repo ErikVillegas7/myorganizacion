@@ -95,6 +95,19 @@ export const getSubjectProgress = (subjectId: string, units: { subjectId: string
   return Math.round((su.filter(u => u.status === "aprendida").length / su.length) * 100);
 };
 
+export function isSubjectIncomplete(subject: Subject) {
+  return (
+    !subject.evaluations &&
+    !(subject.grades ?? []).some(g => g !== null && g !== undefined) &&
+    !subject.clasesTotal &&
+    !subject.regularGrade &&
+    !subject.promotionGrade &&
+    !subject.quizRequired &&
+    !subject.groupWorkRequired &&
+    subject.conditions === ""
+  );
+}
+
 export function isCorrelativesOk(subject: Subject, allSubjects: Subject[]) {
   if (!subject.correlatividades?.length) return true;
   return subject.correlatividades.every(corrId => {
