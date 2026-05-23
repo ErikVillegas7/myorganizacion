@@ -140,8 +140,8 @@ export default function DashboardPage() {
                 return (
                   <div key={dateStr} className="relative flex items-center justify-center py-0.5">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      isToday ? "bg-[var(--c-text)] text-[var(--c-bg)]" : "hover:bg-white/[0.05]"
-                    }`} style={{ color: isToday ? "var(--c-bg)" : "var(--c-text)" }}>
+                      isToday ? "bg-sky-500 text-white" : "hover:bg-white/[0.05]"
+                    }`} style={{ color: isToday ? undefined : "var(--c-text)" }}>
                       {day}
                     </div>
                     {hasEvent && <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-rose-400" />}
@@ -178,8 +178,7 @@ export default function DashboardPage() {
             </div>
             {activeSubjects.length === 0 ? (
               <Link href="/materias#new" onClick={() => playSound("tap")}
-                className="flex items-center justify-center gap-2 py-8 rounded-2xl border border-dashed text-xs font-semibold hover:bg-white/[0.03] transition-all"
-                style={{ borderColor: "var(--c-border)", color: "var(--c-text-muted)" }}>
+                className="flex items-center justify-center gap-2 py-8 rounded-2xl border border-dashed text-xs font-semibold hover:bg-white/[0.03] transition-all text-sky-400 border-sky-500/30">
                 Crear materia +
               </Link>
             ) : (
@@ -242,8 +241,7 @@ export default function DashboardPage() {
             </div>
             {weekEvents.length === 0 ? (
               <Link href="/calendario#new" onClick={() => playSound("tap")}
-                className="flex items-center justify-center gap-2 py-8 rounded-2xl border border-dashed text-xs font-semibold hover:bg-white/[0.03] transition-all"
-                style={{ borderColor: "var(--c-border)", color: "var(--c-text-muted)" }}>
+                className="flex items-center justify-center gap-2 py-8 rounded-2xl border border-dashed text-xs font-semibold hover:bg-white/[0.03] transition-all text-sky-400 border-sky-500/30">
                 <Calendar size={15} /> Crear evento +
               </Link>
             ) : (

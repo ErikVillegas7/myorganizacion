@@ -103,13 +103,9 @@ export default function PlanPage() {
   const [planKey, setPlanKey] = useLocalStorageState<string | null>(PLAN_STORAGE_KEY, null);
   const [pendingPlan, setPendingPlan] = useState<PendingPlan>(null);
   const router = useRouter();
-  const mobileContainerRef = useRef<HTMLDivElement>(null);
-  const mobileInnerRef = useRef<HTMLDivElement>(null);
   const deskContainerRef = useRef<HTMLDivElement>(null);
   const deskInnerRef = useRef<HTMLDivElement>(null);
-  const [mobileLines, setMobileLines] = useState<LineData[]>([]);
   const [deskLines, setDeskLines] = useState<LineData[]>([]);
-  const [svgDims, setSvgDims] = useState({ w: 0, h: 0 });
   const [deskSvgDims, setDeskSvgDims] = useState({ w: 0, h: 0 });
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null | undefined>(undefined);
@@ -166,43 +162,6 @@ export default function PlanPage() {
     return { aprobadas, cursando, pendientes };
   }, [activeSubjects, unlockedIds]);
 
-  const recalcMobile = useCallback(() => {
-    const inner = mobileInnerRef.current;
-    if (!inner) return;
-    const containerRect = inner.getBoundingClientRect();
-    const result: LineData[] = [];
-    const currentIds = new Set(currentYearSubjects.map(s => s.id));
-
-    for (const subject of currentYearSubjects) {
-      if (!subject.correlatividades?.length) continue;
-      const subjEl = inner.querySelector(`[data-subject-id="${subject.id}"]`) as HTMLElement | null;
-      if (!subjEl) continue;
-      const subjRect = subjEl.getBoundingClientRect();
-
-      for (const corrId of subject.correlatividades) {
-        if (!currentIds.has(corrId)) continue;
-        const corrEl = inner.querySelector(`[data-subject-id="${corrId}"]`) as HTMLElement | null;
-        if (!corrEl) continue;
-        const corrRect = corrEl.getBoundingClientRect();
-
-        const x1 = corrRect.right - containerRect.left;
-        const y1 = corrRect.top + corrRect.height / 2 - containerRect.top;
-        const x2 = subjRect.left - containerRect.left;
-        const y2 = subjRect.top + subjRect.height / 2 - containerRect.top;
-        const dx = Math.abs(x2 - x1) * 0.4;
-
-        result.push({
-          d: `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`,
-          fromId: corrId,
-          toId: subject.id,
-        });
-      }
-    }
-
-    setMobileLines(result);
-    setSvgDims({ w: inner.scrollWidth, h: inner.scrollHeight });
-  }, [currentYearSubjects]);
-
   const recalcDesk = useCallback(() => {
     const inner = deskInnerRef.current;
     if (!inner) { setDeskLines([]); return; }
@@ -244,19 +203,6 @@ export default function PlanPage() {
     setDeskLines(result);
     setDeskSvgDims({ w: inner.scrollWidth, h: inner.scrollHeight });
   }, [activeSubjects, focusedId]);
-
-  useEffect(() => {
-    recalcMobile();
-    const ro = new ResizeObserver(recalcMobile);
-    if (mobileContainerRef.current) ro.observe(mobileContainerRef.current);
-    mobileContainerRef.current?.addEventListener("scroll", recalcMobile);
-    window.addEventListener("resize", recalcMobile);
-    return () => {
-      ro.disconnect();
-      mobileContainerRef.current?.removeEventListener("scroll", recalcMobile);
-      window.removeEventListener("resize", recalcMobile);
-    };
-  }, [recalcMobile]);
 
   useEffect(() => {
     recalcDesk();
@@ -395,15 +341,8 @@ export default function PlanPage() {
             ))}
           </div>
         </div>
-        <div ref={mobileContainerRef} className="flex-1 overflow-y-auto px-4 pb-24">
-          <div ref={mobileInnerRef} className="relative"
-            onClick={(e) => { if ((e.target as HTMLElement) === mobileInnerRef.current) setFocusedId(null); }}>
-            <svg width={svgDims.w} height={svgDims.h} className="absolute top-0 left-0 pointer-events-none z-0" style={{ minWidth: "100%", minHeight: "100%" }}>
-              {mobileLines.map((ld, i) => (
-                <path key={i} d={ld.d} stroke="var(--c-border-2)" strokeWidth={1.5} fill="none" />
-              ))}
-            </svg>
-            <div className="relative z-10 pt-4 pb-8 space-y-2.5">
+        <div className="flex-1 overflow-y-auto px-4 pb-24">
+          <div className="pt-4 pb-8 space-y-2.5">
               {currentYearSubjects.map(subject => {
                 const color = getColor(subject.color ?? "violet");
                 const st = getPlanStatus(subject, !unlockedIds.has(subject.id));
@@ -475,7 +414,6 @@ export default function PlanPage() {
                   </button>
                 );
               })}
-            </div>
           </div>
         </div>
       </div>

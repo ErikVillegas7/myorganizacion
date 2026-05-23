@@ -7,7 +7,7 @@ import { filterActive, mergeById, normalizeItems, nowIso } from "@/lib/sync-util
 import { 
   Activity, Target, Plus, Check, Trash2, X, Flame, 
   MoreVertical, Book, Dumbbell, Droplets, Heart, 
-  Zap, Monitor, Music, Coffee, Briefcase, PenTool, Moon
+  Zap, Monitor, Music, Coffee, Briefcase, PenTool, Moon, CheckCircle
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
@@ -42,9 +42,7 @@ const ICONS_MAP: Record<string, LucideIcon> = {
 };
 const ICON_NAMES = Object.keys(ICONS_MAP);
 
-const initialHabits: Habit[] = [
-  { id: "habit-lectura", name: "Lectura", icon: "Book", color: "blue", history: {} }
-];
+const initialHabits: Habit[] = [];
 
 const createId = () => crypto.randomUUID();
 
@@ -119,6 +117,7 @@ export default function HabitosPage() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
+    if (sessionStorage.getItem("mo_cleared_all")) { sessionStorage.removeItem("mo_cleared_all"); setRemoteReady(true); return; }
     let cancelled = false;
 
     const loadRemote = async () => {
@@ -286,8 +285,7 @@ export default function HabitosPage() {
                 Cancelar
               </button>
               <button type="button" onClick={handleAdd}
-                className="flex-1 rounded-xl bg-[var(--c-text)] py-2.5 text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                style={{ color: "var(--c-bg)" }}>
+                className="flex-1 rounded-xl bg-sky-500 py-2.5 text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 text-white shadow-lg shadow-sky-500/20">
                 <Check size={16} strokeWidth={2.5} /> Crear Hábito
               </button>
             </div>
@@ -303,18 +301,17 @@ export default function HabitosPage() {
               <Activity size={18} className="text-amber-400" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-none" style={{ color: "var(--c-text)" }}>Hábitos</h1>
-              <p className="text-[11px] mt-0.5 font-medium" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {activeHabits.length} hoy</p>
+              <p className="text-[11px] font-medium" style={{ color: "var(--c-text-muted)" }}>{habitsTodayDone} de {activeHabits.length} hoy</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ViewHelp title="Ayuda rápida de hábitos" label="Ayuda">
-              <p>Agregá hábitos diarios y marcá los completados para mantener constancia.</p>
-              <p>Revisá tu progreso semanal y ajustá tus metas según sea necesario.</p>
-            </ViewHelp>
+            <ViewHelp title="Cómo usar Hábitos" steps={[
+              { icon: <Target size={28}/>, title: "Creá tus rutinas", description: "Agregá hábitos que quieras construir y elegí un ícono y color para identificarlos. La constancia es la clave." },
+              { icon: <CheckCircle size={28}/>, title: "Marcá tu progreso", description: "Todos los días marcá si completaste el hábito para ver tu avance en el calendario semanal." },
+              { icon: <Flame size={28}/>, title: "Armá rachas", description: "Si completás un hábito varios días seguidos, vas a sumar una racha y verla reflejada con un fueguito." },
+            ]} />
             <button type="button" onClick={() => { playSound("click"); setShowModal(true); }} aria-label="Crear hábito"
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95"
-              style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
+              className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 bg-sky-500 text-white shadow-lg shadow-sky-500/20">
               <Plus size={20} strokeWidth={2.5} />
             </button>
           </div>
@@ -349,8 +346,7 @@ export default function HabitosPage() {
             <button
               type="button"
               onClick={() => { playSound("click"); setShowModal(true); }}
-              className="rounded-full px-4 py-2 text-xs font-bold transition-all active:scale-95"
-              style={{ background: "var(--c-text)", color: "var(--c-bg)" }}
+              className="rounded-full px-4 py-2 text-xs font-bold text-white bg-sky-500 transition-all active:scale-95 shadow-lg shadow-sky-500/20"
             >
               Crear mi primer hábito
             </button>

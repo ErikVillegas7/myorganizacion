@@ -175,7 +175,7 @@ export function AppShell({ children }: AppShellProps) {
           className="flex-none flex items-center gap-3 px-4 sm:px-5 py-2.5 border-b"
           style={{ background: "var(--c-bg-2)", borderColor: "var(--c-border)" }}
         >
-          <div className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center flex-none bg-blue-500/15 text-blue-400">
+          <div className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center flex-none bg-sky-500/15 text-sky-400">
             <Cloud size={16} />
           </div>
           <p className="min-w-0 flex-1 text-xs font-semibold leading-snug" style={{ color: "var(--c-text-muted)" }}>
@@ -184,7 +184,7 @@ export function AppShell({ children }: AppShellProps) {
           <button
             type="button"
             onClick={() => { playSound("click"); void signIn("google"); }}
-            className="flex-none rounded-lg bg-blue-500 px-3 py-1.5 text-[11px] font-bold text-white transition-all hover:bg-blue-400 active:scale-95"
+            className="flex-none rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-bold text-white transition-all hover:bg-sky-400 active:scale-95"
           >
             Sincronizar
           </button>
@@ -225,13 +225,16 @@ export function AppShell({ children }: AppShellProps) {
 
           {/* Settings link at bottom of sidebar */}
           <Link href="/ajustes"
-            className={`flex-none flex items-center gap-2.5 mx-2.5 mb-3 px-3 py-2.5 rounded-xl text-[13px] transition-all border ${
+            className={`flex-none flex items-center gap-2.5 mx-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all border ${
               isAjustes ? "bg-zinc-500/12 border-zinc-500/25 text-zinc-300" : "border-transparent hover:bg-white/[0.04]"
             }`}
             style={!isAjustes ? { color: "var(--c-text-muted)" } : {}}>
             <Settings size={17} strokeWidth={isAjustes ? 2.2 : 1.8} />
             <span className="font-semibold">Ajustes</span>
           </Link>
+          <p className="text-[10px] text-center pb-3 px-3" style={{ color: "var(--c-text-muted)" }}>
+            &copy; {new Date().getFullYear()} MyOrganización · Villegas
+          </p>
         </aside>
 
         {/* Mobile sidebar overlay */}
@@ -286,6 +289,9 @@ export function AppShell({ children }: AppShellProps) {
               <span className="font-semibold">Ajustes</span>
             </Link>
           </nav>
+          <p className="text-[10px] text-center pb-3 px-3" style={{ color: "var(--c-text-muted)" }}>
+            &copy; {new Date().getFullYear()} MyOrganización
+          </p>
         </aside>
 
         <main className="flex-1 overflow-hidden min-w-0">{children}</main>
@@ -368,6 +374,9 @@ export function AppShell({ children }: AppShellProps) {
           </button>
         </div>
       </nav>
+      <p className="flex-none sm:hidden text-[9px] text-center py-2" style={{ color: "var(--c-text-muted)" }}>
+        &copy; {new Date().getFullYear()} MyOrganización
+      </p>
     </div>
   );
 }

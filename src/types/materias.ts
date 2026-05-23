@@ -9,8 +9,8 @@ export type Subject = {
   grade: string;
   grades?: (number | null)[];
   finalGrade?: number | null;
-  regularGrade?: number;
-  promotionGrade?: number;
+  regularGrade?: number | null;
+  promotionGrade?: number | null;
   conditions: string;
   manualCondition?: "Abandono";
   quizRequired?: boolean;

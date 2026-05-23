@@ -9,7 +9,7 @@ import type { SoundType } from "@/lib/use-sound";
 
 const COND_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   "Promoción": { bg: "bg-emerald-500/15", text: "text-emerald-400", label: "P" },
-  "Regular":   { bg: "bg-blue-500/15",    text: "text-blue-400",    label: "R" },
+  "Regular":   { bg: "bg-sky-500/15",    text: "text-sky-400",    label: "R" },
   "Libre":     { bg: "bg-zinc-500/15",    text: "text-zinc-400",    label: "L" },
   "Abandono":  { bg: "bg-rose-500/15",    text: "text-rose-400",    label: "A" },
 };
@@ -39,8 +39,8 @@ export function SubjectModal({ initial, allSubjects, onSave, onClose, playSound 
   const [type, setType] = useState<SubjectType>(initial?.type ?? "cuatrimestral");
   const [kind, setKind] = useState<MateriaKind>(initial?.kind ?? "teorico-practica");
   const [evaluations, setEvaluations] = useState(initial?.evaluations ?? 2);
-  const [regularGrade, setRegularGrade] = useState(initial?.regularGrade ?? 4);
-  const [promotionGrade, setPromotionGrade] = useState(initial?.promotionGrade ?? 7);
+  const [regularGrade, setRegularGrade] = useState<number | null>(initial?.regularGrade ?? null);
+  const [promotionGrade, setPromotionGrade] = useState<number | null>(initial?.promotionGrade ?? null);
   const [finalGrade, setFinalGrade] = useState<number | null>(initial?.finalGrade ?? null);
   const [conditions, setConditions] = useState(initial?.conditions ?? "");
   const [manualCondition, setManualCondition] = useState<"Abandono" | undefined>(initial?.manualCondition);
@@ -59,8 +59,10 @@ export function SubjectModal({ initial, allSubjects, onSave, onClose, playSound 
   const toggleCorr = (id: string) =>
     setCorrelatividades(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
 
+  const canSave = name.trim() && regularGrade !== null && promotionGrade !== null;
+
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!canSave) return;
     playSound("success");
     onSave({
       name: name.trim(), icon, color, type, kind, evaluations, regularGrade, promotionGrade,
@@ -193,15 +195,17 @@ export function SubjectModal({ initial, allSubjects, onSave, onClose, playSound 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--c-text-muted)" }}>Regularidad</label>
-                <input type="number" min={1} max={10} step={1} value={regularGrade} onChange={e => setRegularGrade(Number(e.target.value) || 4)}
+                <input type="number" min={1} max={10} step={1} value={regularGrade ?? ""} onChange={e => setRegularGrade(e.target.value === "" ? null : Number(e.target.value))}
+                  placeholder="Ej: 4"
                   className="w-full rounded-xl px-3.5 py-2 text-sm font-medium text-center focus:outline-none transition-all"
-                  style={{ background: "var(--c-bg-2)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
+                  style={{ background: "var(--c-bg-2)", border: `1px solid ${regularGrade === null ? "var(--c-border)" : "var(--c-border)"}`, color: regularGrade === null ? "var(--c-text-muted)" : "var(--c-text)" }} />
               </div>
               <div>
                 <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--c-text-muted)" }}>Promoción</label>
-                <input type="number" min={1} max={10} step={1} value={promotionGrade} onChange={e => setPromotionGrade(Number(e.target.value) || 7)}
+                <input type="number" min={1} max={10} step={1} value={promotionGrade ?? ""} onChange={e => setPromotionGrade(e.target.value === "" ? null : Number(e.target.value))}
+                  placeholder="Ej: 7"
                   className="w-full rounded-xl px-3.5 py-2 text-sm font-medium text-center focus:outline-none transition-all"
-                  style={{ background: "var(--c-bg-2)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
+                  style={{ background: "var(--c-bg-2)", border: "1px solid var(--c-border)", color: promotionGrade === null ? "var(--c-text-muted)" : "var(--c-text)" }} />
               </div>
             </div>
           </SectionCard>
@@ -304,13 +308,13 @@ export function SubjectModal({ initial, allSubjects, onSave, onClose, playSound 
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <div className="rounded-lg px-3 py-1.5 flex items-center gap-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
                       <span className="text-xs font-medium" style={{ color: "var(--c-text-muted)" }}>Cant.</span>
-                      <input type="number" min={1} max={20} value={quizRequiredCount === 0 ? "" : quizRequiredCount}
+                      <input type="number" min={1} max={20} value={String(quizRequiredCount)}
                         onChange={e => setQuizRequiredCount(e.target.value === "" ? 0 : Math.max(1, Number(e.target.value)))}
                         className="w-full text-sm font-bold text-center focus:outline-none" style={{ background: "transparent", color: "var(--c-text)" }} />
                     </div>
                     <div className="rounded-lg px-3 py-1.5 flex items-center gap-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
                       <span className="text-xs font-medium" style={{ color: "var(--c-text-muted)" }}>Nota</span>
-                      <input type="number" min={1} max={10} step={0.5} value={quizRequiredGrade === 0 ? "" : quizRequiredGrade}
+                      <input type="number" min={1} max={10} step={0.5} value={String(quizRequiredGrade)}
                         onChange={e => setQuizRequiredGrade(e.target.value === "" ? 0 : Number(e.target.value))}
                         className="w-full text-sm font-bold text-center focus:outline-none" style={{ background: "transparent", color: "var(--c-text)" }} />
                     </div>
@@ -335,13 +339,13 @@ export function SubjectModal({ initial, allSubjects, onSave, onClose, playSound 
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <div className="rounded-lg px-3 py-1.5 flex items-center gap-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
                       <span className="text-xs font-medium" style={{ color: "var(--c-text-muted)" }}>Cant.</span>
-                      <input type="number" min={0} max={20} value={groupWorkRequiredCount === 0 ? "" : groupWorkRequiredCount}
+                      <input type="number" min={0} max={20} value={String(groupWorkRequiredCount)}
                         onChange={e => setGroupWorkRequiredCount(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
                         className="w-full text-sm font-bold text-center focus:outline-none" style={{ background: "transparent", color: "var(--c-text)" }} />
                     </div>
                     <div className="rounded-lg px-3 py-1.5 flex items-center gap-2" style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)" }}>
                       <span className="text-xs font-medium" style={{ color: "var(--c-text-muted)" }}>Nota</span>
-                      <input type="number" min={1} max={10} step={0.5} value={groupWorkRequiredGrade === 0 ? "" : groupWorkRequiredGrade}
+                      <input type="number" min={1} max={10} step={0.5} value={String(groupWorkRequiredGrade)}
                         onChange={e => setGroupWorkRequiredGrade(e.target.value === "" ? 0 : Number(e.target.value))}
                         className="w-full text-sm font-bold text-center focus:outline-none" style={{ background: "transparent", color: "var(--c-text)" }} />
                     </div>
@@ -370,9 +374,9 @@ export function SubjectModal({ initial, allSubjects, onSave, onClose, playSound 
             style={{ border: "1px solid var(--c-border)", color: "var(--c-text-muted)" }}>
             Cancelar
           </button>
-          <button type="button" onClick={handleSave}
-            className="flex-1 rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
-            style={{ background: selColor?.hex ?? "var(--c-text)", color: "var(--c-bg)" }}>
+          <button type="button" onClick={handleSave} disabled={!canSave}
+            className="flex-1 rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-30"
+            style={{ background: canSave ? (selColor?.hex ?? "var(--c-text)") : "var(--c-glass)", color: canSave ? "var(--c-bg)" : "var(--c-text-muted)" }}>
             <Check size={16} strokeWidth={2.5} /> {initial?.id ? "Guardar" : "Crear"}
           </button>
         </div>

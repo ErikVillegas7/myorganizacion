@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Plus, GraduationCap } from "lucide-react";
+import { Plus, GraduationCap, Book, CheckSquare } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import { useSound } from "@/lib/use-sound";
@@ -41,6 +41,7 @@ export default function MateriasPage() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
+    if (sessionStorage.getItem("mo_cleared_all")) { sessionStorage.removeItem("mo_cleared_all"); setRemoteReady(true); return; }
     let cancelled = false;
     const run = async () => {
       try {
@@ -125,7 +126,7 @@ export default function MateriasPage() {
       groupWorkRequired: data.groupWorkRequired ?? false, groupWorkRequiredCount: wCount,
       groupWorkRequiredGrade: data.groupWorkRequiredGrade ?? 6, groupWorkGrades: Array(wCount).fill(null),
       finalGrade: null, color: data.color, type: data.type, kind: data.kind, evaluations: evalCount,
-      regularGrade: data.regularGrade ?? 4, promotionGrade: data.promotionGrade ?? 7, grades: Array(evalCount).fill(null),
+      regularGrade: data.regularGrade ?? null, promotionGrade: data.promotionGrade ?? null, grades: Array(evalCount).fill(null),
       clasesTotal: 0, clasesAsistidas: 0, umbralAsistencia: data.umbralAsistencia ?? 75,
       correlatividades: data.correlatividades ?? [], regularidadFecha: data.regularidadFecha ?? null,
       year: data.year, updatedAt: nowIso(), deletedAt: null,
@@ -283,19 +284,18 @@ export default function MateriasPage() {
 
       <div className="flex-none px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between z-10 desktop-page-shell" style={{ background: "var(--c-bg)" }}>
         <div className="min-w-0">
-          <h1 className="text-2xl font-extrabold tracking-tight leading-none" style={{ color: "var(--c-text)" }}>Materias</h1>
-          <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--c-text-muted)" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--c-text-muted)" }}>
             {activeUnits.filter(u => u.status === "aprendida").length}/{activeUnits.length} temas · {stats.total} materias
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ViewHelp title="Ayuda rápida de materias" label="Ayuda">
-            <p>Creá materias con modalidad (Taller, Teórica, Teórico-Práctica) y configurá correlatividades para saber si podés cursar.</p>
-            <p>Usá la tab "Asistencia" para registrar presentes/ausentes y ver si estás en riesgo antes de quedarte libre por faltas.</p>
-          </ViewHelp>
+          <ViewHelp title="Cómo usar Materias" steps={[
+            { icon: <Book size={28}/>, title: "Organizá tu carrera", description: "Cargá todas tus materias, ya sean teóricas, taller o teórico-prácticas. Podés traerlas desde un plan precargado en Ajustes." },
+            { icon: <CheckSquare size={28}/>, title: "Registrá temas y notas", description: "Añadí unidades a tus materias para marcar cuáles ya aprendiste, y llevá el control de tus calificaciones." },
+            { icon: <GraduationCap size={28}/>, title: "Controlá la correlatividad", description: "Chequeá qué podés cursar agregándole condiciones o correlativas a cada materia." },
+          ]} />
           <button type="button" onClick={() => { playSound("click"); setShowModal(true); }}
-            className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
-            style={{ background: "var(--c-text)", color: "var(--c-bg)", boxShadow: "0 4px 14px rgba(255,255,255,0.1)" }}>
+            className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 bg-sky-500 text-white shadow-lg shadow-sky-500/20">
             <Plus size={20} strokeWidth={2.5} />
           </button>
         </div>
@@ -314,6 +314,10 @@ export default function MateriasPage() {
                 <p className="text-base font-bold" style={{ color: "var(--c-text)" }}>Ninguna materia todavía</p>
                 <p className="text-xs mt-1 max-w-[220px] mx-auto" style={{ color: "var(--c-text-muted)" }}>Creá tu primera materia y empezá a organizarte.</p>
               </div>
+              <button type="button" onClick={() => { playSound("click"); setShowModal(true); }}
+                className="rounded-full px-4 py-2 text-xs font-bold text-white bg-sky-500 transition-all active:scale-95 shadow-lg shadow-sky-500/20">
+                Crear mi primera materia
+              </button>
             </div>
           ) : (
             <>
@@ -321,7 +325,7 @@ export default function MateriasPage() {
                 {yearGroups.map(([year]) => (
                   <button key={year ?? "sin-ano"} type="button" onClick={() => { playSound("tap"); setSelectedYear(year); }}
                     className={`flex-none rounded-lg px-3 py-1.5 text-xs font-bold border transition-all ${
-                      selectedYear === year ? "bg-violet-500/15 border-violet-500/30 text-violet-400" : "border-[var(--c-border)]"
+                      selectedYear === year ? "bg-sky-500/15 border-sky-500/30 text-sky-400" : "border-[var(--c-border)]"
                     }`}
                     style={selectedYear !== year ? { color: "var(--c-text-muted)", background: "var(--c-glass)" } : {}}>
                     {year ? `${year}° año` : "Sin año"}

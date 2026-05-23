@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AppSessionProvider } from "@/components/session-provider";
+import { WhatsNew } from "@/components/whats-new";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
@@ -23,8 +24,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
+  maximumScale: 1,
+  userScalable: false,
   interactiveWidget: "resizes-content",
 };
 
@@ -40,6 +41,7 @@ export default function RootLayout({
     >
       <body className="h-full overflow-hidden bg-background text-foreground">
         <AppSessionProvider>
+          <WhatsNew />
           <AppShell>{children}</AppShell>
         </AppSessionProvider>
         <Analytics />

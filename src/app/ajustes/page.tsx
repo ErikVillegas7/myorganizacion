@@ -2,13 +2,16 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSettings, AppTheme } from "@/lib/use-settings";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import {
   User, Sun, Moon, Download, Upload, Trash2,
   Camera, Settings, CheckCircle2, AlertTriangle, Volume2, VolumeX, GraduationCap,
+  Sparkles, MessageSquareText, Heart, Shield,
 } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
+import { FeedbackModal } from "@/components/feedback-modal";
 import { APP_STORAGE_KEYS } from "@/lib/logout-sync";
 import { STORAGE_KEYS } from "@/lib/materias/constants";
 import { PLAN_TEMPLATES, PLAN_STORAGE_KEY } from "@/lib/materias/plan-templates";
@@ -23,7 +26,7 @@ function subjectExists(existing: Subject[], s: Subject) {
   return existing.some(e => e.id === s.id || (norm && normalizeName(e.name) === norm));
 }
 
-const ALL_STORAGE_KEYS: string[] = [...APP_STORAGE_KEYS];
+const ALL_STORAGE_KEYS: string[] = [...APP_STORAGE_KEYS, PLAN_STORAGE_KEY];
 
 function exportBackup() {
   const data: Record<string, unknown> = {};
@@ -66,6 +69,7 @@ export default function AjustesPage() {
   const [showDanger, setShowDanger] = useState(false);
   const [subjects, setSubjects] = useLocalStorageState<Subject[]>(STORAGE_KEYS.subjects, [], { normalize: (v: unknown) => v as Subject[] });
   const [planKey, setPlanKey] = useLocalStorageState<string | null>(PLAN_STORAGE_KEY, null);
+  const [showFeedback, setShowFeedback] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const playSound = useSound();
@@ -93,14 +97,33 @@ export default function AjustesPage() {
     document.documentElement.setAttribute("data-theme", t);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
+    // 1. Limpiar estado de React para evitar que vuelva a guardar por UseEffect antes de salir
+    setPlanKey(null);
+    setSubjects([]);
+
+    sessionStorage.setItem("mo_cleared_all", Date.now().toString());
     for (const key of ALL_STORAGE_KEYS) localStorage.removeItem(key);
-    window.location.reload();
+
+    // 2. Limpiar la DB usando await para evitar que Chrome aborte los fetch() al redirigir
+    try {
+      await Promise.all([
+        fetch("/api/subjects", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subjects: [], units: [] }) }),
+        fetch("/api/notes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: [], folders: [] }) }),
+        fetch("/api/calendar", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ events: [] }) }),
+        fetch("/api/habits", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ habits: [] }) }),
+        fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: {} }) })
+      ]);
+    } catch (e) {
+      console.error("No se pudo limpiar la DB", e);
+    }
+    
+    window.location.href = "/";
   };
 
   return (
     <div className="h-full overflow-y-auto scroll-panel">
-      <div className="p-5 sm:p-8 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-5">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-2xl mx-auto flex flex-col gap-4">
 
         {/* Header */}
         <div className="flex items-center gap-3 pt-1 anim-slide-down">
@@ -108,7 +131,6 @@ export default function AjustesPage() {
             <Settings size={18} style={{ color: "var(--c-text-muted)" }} />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: "var(--c-text)" }}>Ajustes</h1>
             <p className="text-xs" style={{ color: "var(--c-text-muted)" }}>Personalizá tu experiencia</p>
           </div>
         </div>
@@ -119,7 +141,7 @@ export default function AjustesPage() {
             <User size={12} /> Perfil
           </h2>
 
-          <div className="flex items-center gap-4">
+          <div className="flex gap-4">
             <div className="relative flex-none">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden flex items-center justify-center border-2" style={{ background: "var(--c-glass)", borderColor: "var(--c-border-2)" }}>
                 {settings.avatar ? (
@@ -131,7 +153,7 @@ export default function AjustesPage() {
                 )}
               </div>
               <button type="button" onClick={() => { playSound("tap"); avatarInputRef.current?.click(); }}
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl bg-violet-500 flex items-center justify-center shadow-lg hover:bg-violet-400 transition-all active:scale-90">
+                className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-7 h-7 rounded-xl bg-sky-500 flex items-center justify-center shadow-lg hover:bg-sky-400 transition-all active:scale-90">
                 <Camera size={13} className="text-white" />
               </button>
               <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
@@ -144,7 +166,7 @@ export default function AjustesPage() {
                   className="flex-1 rounded-xl px-3.5 py-2 text-sm font-semibold focus:outline-none transition-all"
                   style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
                 <button type="button" onClick={handleSaveName}
-                  className={`flex-none rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${saved ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-[var(--c-text)] text-[var(--c-bg)] shadow-md"}`}>
+                  className={`flex-none rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${saved ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-sky-500 text-white shadow-lg shadow-sky-500/20"}`}>
                   {saved ? <><CheckCircle2 size={13} /> Guardado</> : "Guardar"}
                 </button>
               </div>
@@ -205,7 +227,7 @@ export default function AjustesPage() {
           <p className="text-xs leading-relaxed" style={{ color: "var(--c-text-muted)" }}>
             {planKey
               ? `Plan activo: ${PLAN_TEMPLATES.find(p => p.key === planKey)?.label ?? planKey}`
-              : "Elegí un plan de estudio para cargar todas las materias automáticamente."}
+              : "No se ha seleccionado ningún plan. Si querés personalizar tu plan, creá las materias a mano y poné sus correlativas, o elegí uno de los planes predefinidos acá abajo."}
           </p>
           {PLAN_TEMPLATES.map(pt => {
             const active = planKey === pt.key;
@@ -228,11 +250,11 @@ export default function AjustesPage() {
                     setSubjects([...subjects, ...toAdd] as Subject[]);
                   }
                 }}
-                className={`w-full rounded-xl border-2 px-4 py-3 text-left transition-all ${active ? "border-violet-500/40" : ""}`}
-                style={{ background: active ? "var(--c-glass)" : "var(--c-glass)", borderColor: active ? "#a78bfa66" : "var(--c-border)" }}>
+                className={`w-full rounded-xl border-2 px-4 py-3 text-left transition-all ${active ? "border-sky-500/40" : ""}`}
+                style={{ background: active ? "var(--c-glass)" : "var(--c-glass)", borderColor: active ? "#38bdf866" : "var(--c-border)" }}>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold" style={{ color: active ? "var(--c-text)" : "var(--c-text)" }}>{pt.label}</p>
-                  {active && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-violet-500/15 text-violet-400">Activo</span>}
+                  {active && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/15 text-sky-400">Activo</span>}
                 </div>
                 <p className="text-[11px] font-medium mt-0.5" style={{ color: "var(--c-text-muted)" }}>
                   {pt.subjects.length} materias · {new Set(pt.subjects.map(s => s.year)).size} años
@@ -240,6 +262,29 @@ export default function AjustesPage() {
               </button>
             );
           })}
+        </section>
+
+        {/* ── Novedades y feedback ── */}
+        <section className="rounded-2xl p-5 border flex flex-col gap-4 anim-slide-up" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", animationDelay: "0.15s" }}>
+          <h2 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--c-text-muted)" }}>
+            <Sparkles size={12} /> Novedades y feedback
+          </h2>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => { playSound("tap"); localStorage.removeItem("mo_changelog_seen"); window.location.href = "/"; }}
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-95"
+              style={{ borderColor: "var(--c-border)", background: "var(--c-glass)", color: "var(--c-text)" }}>
+              <Sparkles size={15} /> Ver novedades
+            </button>
+            <button type="button" onClick={() => { playSound("tap"); setShowFeedback(true); }}
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-95"
+              style={{ borderColor: "var(--c-border)", background: "var(--c-glass)", color: "var(--c-text)" }}>
+              <MessageSquareText size={15} /> Comentanos
+            </button>
+            {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} playSound={playSound} />}
+          </div>
+          <p className="text-[11px] leading-relaxed" style={{ color: "var(--c-text-muted)" }}>
+            ¿Tenés alguna idea o mejora? Tocá "Comentanos" y compartinos tu feedback para seguir mejorando la app.
+          </p>
         </section>
 
         {/* ── Backup ── */}
@@ -267,7 +312,7 @@ export default function AjustesPage() {
         </section>
 
         {/* ── Zona peligrosa ── */}
-        <section className="rounded-2xl p-5 border border-rose-500/20 bg-rose-500/5 flex flex-col gap-3 anim-slide-up" style={{           animationDelay: "0.2s" }}>
+        <section className="rounded-2xl p-5 border border-rose-500/20 bg-rose-500/5 flex flex-col gap-3 anim-slide-up" style={{ animationDelay: "0.2s" }}>
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-rose-400 flex items-center gap-2">
             <AlertTriangle size={12} /> Zona peligrosa
           </h2>
@@ -294,7 +339,21 @@ export default function AjustesPage() {
           )}
         </section>
 
-        {/* Footer */}
+        {/* ── Sobre y términos ── */}
+        <section className="rounded-2xl p-5 border flex flex-col gap-3 anim-slide-up" style={{ background: "var(--c-glass)", borderColor: "var(--c-border)", animationDelay: "0.2s" }}>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/sobre"
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-95"
+              style={{ borderColor: "var(--c-border)", background: "var(--c-glass)", color: "var(--c-text)" }}>
+              <Heart size={15} /> Sobre MyOrganización
+            </Link>
+            <Link href="/terminos"
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 border text-sm font-bold transition-all hover:scale-[1.01] active:scale-95"
+              style={{ borderColor: "var(--c-border)", background: "var(--c-glass)", color: "var(--c-text)" }}>
+              <Shield size={15} /> Términos
+            </Link>
+          </div>
+        </section>
         <p className="text-center text-[11px] pb-4" style={{ color: "var(--c-text-muted)" }}>
           Desarrollado por Villegas · Datos guardados localmente
         </p>

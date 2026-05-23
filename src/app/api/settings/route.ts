@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureUser } from "@/lib/api-helpers";
 
 const toObject = (value: unknown) =>
   value && typeof value === "object" && !Array.isArray(value) ? value : null;
@@ -31,6 +32,7 @@ export async function PUT(request: Request) {
     settings: toObject(body?.settings) ?? {},
   };
 
+  await ensureUser(userId);
   const data = await prisma.userData.upsert({
     where: { userId },
     update: payload,
