@@ -11,11 +11,16 @@ export function SyllabusTab({ subject, units, onAddUnit, onRemoveUnit, onCycleSt
   onCycleStatus: (id: string) => void;
 }) {
   const [newTitle, setNewTitle] = useState("");
+  const [titleError, setTitleError] = useState("");
   const subjectUnits = units.filter(u => u.subjectId === subject.id);
 
   const handleAdd = () => {
     const t = newTitle.trim();
-    if (!t) return;
+    if (!t) {
+      setTitleError("Falta el nombre de la unidad");
+      return;
+    }
+    setTitleError("");
     onAddUnit(t);
     setNewTitle("");
   };
@@ -23,16 +28,17 @@ export function SyllabusTab({ subject, units, onAddUnit, onRemoveUnit, onCycleSt
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
+        <input value={newTitle} onChange={e => { setNewTitle(e.target.value); if (titleError) setTitleError(""); }}
           onKeyDown={e => e.key === "Enter" && handleAdd()}
           placeholder="Nueva unidad o tema..."
           className="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none"
-          style={{ background: "var(--c-glass)", border: "1px solid var(--c-border)", color: "var(--c-text)" }} />
+          style={{ background: "var(--c-glass)", border: `1px solid ${titleError ? "#f43f5e" : "var(--c-border)"}`, color: "var(--c-text)" }} />
         <button type="button" onClick={handleAdd}
           className="flex-none w-11 h-11 rounded-xl bg-[var(--c-text)] text-[var(--c-bg)] flex items-center justify-center active:scale-95">
           <Plus size={20} strokeWidth={2.5} />
         </button>
       </div>
+      {titleError && <p className="text-[11px] font-medium mt-1" style={{ color: "#f43f5e" }}>{titleError}</p>}
 
       <div className="space-y-2">
         {subjectUnits.length === 0 ? (
