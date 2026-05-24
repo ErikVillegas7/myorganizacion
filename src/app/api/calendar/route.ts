@@ -12,11 +12,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const data = await prisma.userData.findUnique({ where: { userId } });
+  try {
+    const data = await prisma.userData.findUnique({ where: { userId } });
 
-  return NextResponse.json({
-    events: toArray(data?.events),
-  });
+    return NextResponse.json({
+      events: toArray(data?.events),
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Database unavailable" },
+      { status: 503 },
+    );
+  }
 }
 
 export async function PUT(request: Request) {
@@ -26,28 +33,36 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const payload = {
-    events: toArray(body?.events),
-  };
+  try {
+    const body = await request.json();
+    const payload = {
+      events: toArray(body?.events),
+    };
 
-  await ensureUser(userId);
-  const data = await prisma.userData.upsert({
-    where: { userId },
-    update: payload,
-    create: {
-      userId,
-      subjects: [],
-      units: [],
-      notes: [],
-      folders: [],
-      habits: [],
-      events: payload.events,
-      settings: {},
-    },
-  });
+    await ensureUser(userId);
+    const data = await prisma.userData.upsert({
+      where: { userId },
+      update: payload,
+      create: {
+        userId,
+        subjects: [],
+        units: [],
+        notes: [],
+        folders: [],
+        habits: [],
+        events: payload.events,
+        settings: {},
+      },
+    });
 
-  return NextResponse.json({
-    events: toArray(data.events),
-  });
+    return NextResponse.json({
+      events: toArray(data.events),
+    });
+  } catch (error) {
+    console.error("/api/calendar PUT error", error);
+    return NextResponse.json(
+      { error: "Database unavailable" },
+      { status: 503 },
+    );
+  }
 }
