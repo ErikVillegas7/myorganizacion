@@ -30,10 +30,12 @@ const putJson = async (url: string, body: unknown) => {
   const res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new Error(`No se pudo guardar ${url}`);
+    const text = await res.text();
+    throw new Error(`No se pudo guardar ${url}: ${res.status} ${res.statusText}${text ? ` – ${text}` : ""}`);
   }
 };
 
@@ -95,4 +97,14 @@ export const syncLocalDataBeforeLogout = async () => {
 
 export const clearLocalAppData = () => {
   APP_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+};
+
+export const clearRemoteAppData = async () => {
+  await Promise.all([
+    putJson("/api/notes", { notes: [], folders: [] }),
+    putJson("/api/subjects", { subjects: [], units: [] }),
+    putJson("/api/calendar", { events: [] }),
+    putJson("/api/habits", { habits: [] }),
+    putJson("/api/settings", { settings: {} }),
+  ]);
 };

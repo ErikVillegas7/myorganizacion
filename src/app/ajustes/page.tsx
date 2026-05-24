@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 import { useSettings, AppTheme } from "@/lib/use-settings";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import {
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { useSound } from "@/lib/use-sound";
 import { FeedbackModal } from "@/components/feedback-modal";
-import { APP_STORAGE_KEYS } from "@/lib/logout-sync";
+import { APP_STORAGE_KEYS, clearRemoteAppData } from "@/lib/logout-sync";
 import { STORAGE_KEYS } from "@/lib/materias/constants";
 import { PLAN_TEMPLATES, PLAN_STORAGE_KEY } from "@/lib/materias/plan-templates";
 import type { Subject } from "@/types/materias";
@@ -69,6 +70,7 @@ export default function AjustesPage() {
   const [showDanger, setShowDanger] = useState(false);
   const [subjects, setSubjects] = useLocalStorageState<Subject[]>(STORAGE_KEYS.subjects, [], { normalize: (v: unknown) => v as Subject[] });
   const [planKey, setPlanKey] = useLocalStorageState<string | null>(PLAN_STORAGE_KEY, null);
+  const { data: session, status } = useSession();
   const [showFeedback, setShowFeedback] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
@@ -98,26 +100,43 @@ export default function AjustesPage() {
   };
 
   const handleClearAll = async () => {
-    // 1. Limpiar estado de React para evitar que vuelva a guardar por UseEffect antes de salir
-    setPlanKey(null);
-    setSubjects([]);
-
-    sessionStorage.setItem("mo_cleared_all", Date.now().toString());
-    for (const key of ALL_STORAGE_KEYS) localStorage.removeItem(key);
-
-    // 2. Limpiar la DB usando await para evitar que Chrome aborte los fetch() al redirigir
-    try {
-      await Promise.all([
-        fetch("/api/subjects", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subjects: [], units: [] }) }),
-        fetch("/api/notes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: [], folders: [] }) }),
-        fetch("/api/calendar", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ events: [] }) }),
-        fetch("/api/habits", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ habits: [] }) }),
-        fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: {} }) })
-      ]);
-    } catch (e) {
-      console.error("No se pudo limpiar la DB", e);
+    const confirmed = window.confirm(
+      "Vas a borrar todos tus datos. Esto eliminará notas, hábitos, materias, eventos y la copia sincronizada si estás con Google. ¿Querés continuar?"
+    );
+    if (!confirmed) {
+      return;
     }
-    
+
+    let remoteErrorMessage: string | null = null;
+    if (status === "authenticated") {
+      try {
+        await clearRemoteAppData();
+      } catch (error) {
+        remoteErrorMessage = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    setSubjects([]);
+    setPlanKey(null);
+    for (const key of ALL_STORAGE_KEYS) localStorage.removeItem(key);
+    localStorage.setItem("mo_cleared_all", Date.now().toString());
+
+    if (remoteErrorMessage && status === "authenticated") {
+      alert(
+        `No se pudieron borrar los datos sincronizados. ${remoteErrorMessage}. ` +
+        "Los datos locales fueron borrados de todos modos y cerré tu sesión para evitar que se restauren."
+      );
+      void signOut({ callbackUrl: "/" });
+      return;
+    }
+
+    if (remoteErrorMessage) {
+      alert(
+        `No se pudieron borrar los datos sincronizados. ${remoteErrorMessage}. ` +
+        "Los datos locales fueron borrados de todos modos."
+      );
+    }
+
     window.location.href = "/";
   };
 
