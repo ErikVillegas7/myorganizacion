@@ -123,8 +123,8 @@ export default function AjustesPage() {
 
     if (remoteErrorMessage && status === "authenticated") {
       alert(
-        `No se pudieron borrar los datos sincronizados. ${remoteErrorMessage}. ` +
-        "Los datos locales fueron borrados de todos modos y cerré tu sesión para evitar que se restauren."
+        `La copia local se borró y cerré tu sesión, pero no pude borrar la copia sincronizada en el servidor. ${remoteErrorMessage}. ` +
+        "Si ves este error, es porque el servidor falló al procesar la solicitud remota, pero los datos locales ya quedaron eliminados."
       );
       void signOut({ callbackUrl: "/" });
       return;
@@ -132,8 +132,8 @@ export default function AjustesPage() {
 
     if (remoteErrorMessage) {
       alert(
-        `No se pudieron borrar los datos sincronizados. ${remoteErrorMessage}. ` +
-        "Los datos locales fueron borrados de todos modos."
+        `La copia local se borró, pero no pude borrar la copia sincronizada en el servidor. ${remoteErrorMessage}. ` +
+        "Los datos locales fueron eliminados de todos modos."
       );
     }
 
